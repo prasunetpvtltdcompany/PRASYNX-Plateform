@@ -1,0 +1,8 @@
+{
+  "dependencies": {
+    "@supabase/supabase-js": "^2.108.1",
+    "@types/nodemailer": "^8.0.1",
+    "nodemailer": "^9.0.0",
+    "pg": "^8.21.0"
+  }
+}

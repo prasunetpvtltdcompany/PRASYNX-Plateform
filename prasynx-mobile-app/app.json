@@ -1,0 +1,35 @@
+{
+  "expo": {
+    "name": "Prasynx",
+    "slug": "prasynx-mobile",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./src/assets/icon.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "prasynx",
+    "splash": {
+      "backgroundColor": "#4F46E5"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.prasynx.mobile"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#4F46E5"
+      },
+      "package": "com.prasynx.mobile",
+      "jsEngine": "jsc",
+      "permissions": []
+    },
+    "plugins": [
+      "expo-camera",
+      "expo-image-picker",
+      "expo-location",
+      "expo-notifications"
+    ]
+  }
+}
