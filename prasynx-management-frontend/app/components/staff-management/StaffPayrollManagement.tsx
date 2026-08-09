@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useApi } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { motion } from 'framer-motion';
 import {
   DollarSign, Users, CalendarCheck, Download, Edit3, X, CreditCard,
@@ -18,10 +19,10 @@ import {
 } from 'recharts';
 
 const TABS = [
-  { key: 'summary', label: 'Summary', icon: TrendingUp },
-  { key: 'structures', label: 'Salary Structures', icon: CreditCard },
-  { key: 'payslips', label: 'Payslips', icon: FileDown },
-  { key: 'deductions', label: 'Deductions', icon: Percent },
+  { key: 'summary', labelKey: 'mod.summary', icon: TrendingUp },
+  { key: 'structures', labelKey: 'mod.salaryStructures', icon: CreditCard },
+  { key: 'payslips', labelKey: 'mod.payslips', icon: FileDown },
+  { key: 'deductions', labelKey: 'mod.deductions', icon: Percent },
 ];
 
 const COLORS = ['#6D4CFF', '#22C55E', '#F59E0B', '#3B82F6', '#EF4444', '#A855F7', '#EC4899', '#14B8A6'];
@@ -48,6 +49,7 @@ function LoadingSkeleton({ rows = 4 }: { rows?: number }) {
 }
 
 export function StaffPayrollManagement() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState('summary');
 
   const overview = useApi(() => enterpriseStaffApi.getPayrollOverview(), []);
@@ -93,19 +95,19 @@ export function StaffPayrollManagement() {
   return (
     <div>
       <div className="page-header">
-        <h1>Payroll Management</h1>
+        <h1>{t('mod.staffPayroll')}</h1>
         <p>Manage employee salaries, payslips, and deductions</p>
       </div>
 
       <div className="flex gap-1 mb-6 p-1 bg-gray-50 rounded-2xl border border-gray-100 w-fit">
-        {TABS.map(t => {
-          const Icon = t.icon;
-          const active = tab === t.key;
+        {TABS.map(item => {
+          const Icon = item.icon;
+          const active = tab === item.key;
           return (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            <button key={item.key} onClick={() => setTab(item.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${active ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
               <Icon size={15} />
-              {t.label}
+              {t(item.labelKey)}
             </button>
           );
         })}

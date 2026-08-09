@@ -6,7 +6,7 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 async function main() {
-  const { data: teachers, error } = await supabase.from('teachers')
+  const { data: teachers, error } = await supabase.from('staff_records')
     .select('*')
     .ilike('full_name', '%Rajesh%');
     

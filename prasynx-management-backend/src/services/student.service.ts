@@ -21,7 +21,7 @@ export class StudentService {
   async getStudents(organisationId: string) {
     const { data, error } = await supabase
       .from('students')
-      .select('*')
+      .select('*, classes(name), sections(name)')
       .eq('organisation_id', organisationId)
       .order('created_at', { ascending: false });
     if (error) throw new BadRequestError(error.message);

@@ -8,7 +8,7 @@ export class TimetableService {
   async getDashboard(orgId: string) {
     const [entriesRes, teachersRes, roomsRes, conflictsRes] = await Promise.all([
       supabase.from('timetable_entries').select('*', { count: 'exact' }).eq('organisation_id', orgId).eq('is_active', true),
-      supabase.from('teachers').select('id', { count: 'exact' }).eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('staff_records').select('id', { count: 'exact' }).eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('timetable_entries').select('room').eq('organisation_id', orgId).not('room', 'is', null),
       supabase.from('schedule_conflicts').select('*', { count: 'exact' }).eq('organisation_id', orgId).eq('is_resolved', false),
     ]);
@@ -75,7 +75,7 @@ export class TimetableService {
   async getEntries(orgId: string, filters?: { class_id?: string; teacher_id?: string; day_of_week?: number; room?: string; entry_type?: string; term?: string }) {
     let query = supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*), substitute:substitute_teacher_id(id, full_name)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*), substitute:substitute_teacher_id(id, full_name)')
       .eq('organisation_id', orgId)
       .eq('is_active', true)
       .order('day_of_week')
@@ -93,7 +93,7 @@ export class TimetableService {
   async getEntryById(entryId: string) {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*), substitute:substitute_teacher_id(id, full_name)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*), substitute:substitute_teacher_id(id, full_name)')
       .eq('id', entryId)
       .single();
     if (error) throw new BadRequestError(error.message);
@@ -239,7 +239,7 @@ export class TimetableService {
     const conflicts: any[] = [];
     if (data.teacher_id) {
       let q = supabase.from('timetable_entries')
-        .select('id, class_id, start_time, end_time, teacher:teachers(full_name), class:classes(name, section)')
+        .select('id, class_id, start_time, end_time, teacher:staff_records(full_name), class:classes(name, section)')
         .eq('organisation_id', orgId)
         .eq('teacher_id', data.teacher_id)
         .eq('day_of_week', data.day_of_week)
@@ -302,7 +302,7 @@ export class TimetableService {
   }
 
   async getTeacherAvailability(orgId: string, teacherId?: string) {
-    let q = supabase.from('teacher_availability').select('*, teacher:teachers(full_name)').eq('organisation_id', orgId);
+    let q = supabase.from('teacher_availability').select('*, teacher:staff_records(full_name)').eq('organisation_id', orgId);
     if (teacherId) q = q.eq('teacher_id', teacherId);
     const { data } = await q.order('day_of_week').order('start_time');
     return data || [];
@@ -415,7 +415,7 @@ export class TimetableService {
   async generateTimetable(orgId: string, classId: string, term: string, academicYear: string) {
     const [subjectsRes, teachersRes, classRes] = await Promise.all([
       supabase.from('class_subject_teacher_map').select('*, subject:subject_id(*), teacher:teacher_id(*)').eq('class_id', classId),
-      supabase.from('teachers').select('id, full_name, specialization, max_periods_per_day').eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('staff_records').select('id, full_name, specialization, max_periods_per_day').eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('classes').select('*').eq('id', classId).single(),
     ]);
 
@@ -569,7 +569,7 @@ export class TimetableService {
   }
 
   async getTeachersList(orgId: string) {
-    const { data } = await supabase.from('teachers').select('id, full_name, email, phone, specialization').eq('organisation_id', orgId).eq('status', 'active');
+    const { data } = await supabase.from('staff_records').select('id, full_name, email, phone, specialization').eq('organisation_id', orgId).eq('status', 'active');
     return data || [];
   }
 

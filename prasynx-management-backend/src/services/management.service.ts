@@ -87,11 +87,11 @@ export class ManagementService {
     if (userError) throw new BadRequestError(userError.message);
 
     const { data: teacher, error: teacherError } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .insert({
         organisation_id: data.organisation_id,
         user_id: user.id,
-        teacher_code: `STAFF-${Date.now()}`,
+        staff_unique_id: `STAFF-${Date.now()}`,
         full_name: data.full_name,
         subject: data.subject || null,
         phone: data.phone || null,
@@ -120,8 +120,8 @@ export class ManagementService {
     if (userError) throw new BadRequestError(userError.message);
 
     const { data: teacherRows, error: teacherError } = await supabase
-      .from('teachers')
-      .select('user_id, teacher_code, subject, phone, status')
+      .from('staff_records')
+      .select('user_id, staff_unique_id, subject, phone, status')
       .eq('organisation_id', organisationId);
 
     if (teacherError) throw new BadRequestError(teacherError.message);
@@ -129,7 +129,7 @@ export class ManagementService {
     const teacherMap = new Map((teacherRows || []).map(t => [t.user_id, t]));
     return (users || []).map(user => ({
       ...user,
-      teacher_code: teacherMap.get(user.id)?.teacher_code || '',
+      staff_unique_id: teacherMap.get(user.id)?.staff_unique_id || '',
       subject: teacherMap.get(user.id)?.subject || '',
       phone: teacherMap.get(user.id)?.phone || ''
     }));
@@ -153,7 +153,7 @@ export class ManagementService {
     if (data.status) teacherPayload.status = data.status;
 
     if (Object.keys(teacherPayload).length > 0) {
-      const { error } = await supabase.from('teachers').update(teacherPayload).eq('user_id', staffId);
+      const { error } = await supabase.from('staff_records').update(teacherPayload).eq('user_id', staffId);
       if (error) throw new BadRequestError(error.message);
     }
 
@@ -164,7 +164,7 @@ export class ManagementService {
     const { error: userError } = await supabase.from('users').update({ status }).eq('id', staffId);
     if (userError) throw new BadRequestError(userError.message);
 
-    const { error: teacherError } = await supabase.from('teachers').update({ status }).eq('user_id', staffId);
+    const { error: teacherError } = await supabase.from('staff_records').update({ status }).eq('user_id', staffId);
     if (teacherError) throw new BadRequestError(teacherError.message);
 
     return { message: 'Staff status updated' };

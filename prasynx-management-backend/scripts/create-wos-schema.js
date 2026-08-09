@@ -196,13 +196,13 @@ async function main() {
       updated_at TIMESTAMPTZ DEFAULT NOW()
     );
 
-    -- Backfill staff_profiles from legacy teachers table
+    -- Backfill staff_profiles from legacy staff_records table
     INSERT INTO public.staff_profiles (id, organisation_id, user_id, employee_id, full_name, department, designation, employment_type, joining_date, status, qualification, salary, address)
     SELECT 
       id, 
       organisation_id, 
       user_id, 
-      COALESCE(teacher_code, 'EMP-' || SUBSTRING(id::text, 1, 8)) AS employee_id, 
+      COALESCE(staff_unique_id, 'EMP-' || SUBSTRING(id::text, 1, 8)) AS employee_id, 
       full_name, 
       COALESCE(department, 'Academics') AS department, 
       COALESCE(designation, 'Teacher') AS designation, 
@@ -220,7 +220,7 @@ async function main() {
       qualification,
       salary,
       jsonb_build_object('street', address, 'city', city, 'state', state, 'zip', postal_code) AS address
-    FROM public.teachers
+    FROM public.staff_records
     ON CONFLICT (user_id) DO NOTHING;
 
     -- Enable Row Level Security (RLS) on all WOS tables

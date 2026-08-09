@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -12,7 +13,12 @@ import {
   Star, ClipboardList, Clock, Users, TrendingUp, Search, Building2, MessageSquare, Calendar
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Reviews', 'KPIs', 'Feedback'];
+const TABS = ['Overview', 'Reviews', 'KPIs', 'Feedback'] as const;
+type TabKey = typeof TABS[number];
+
+const TAB_TRANSLATIONS: Record<TabKey, string> = {
+  Overview: 'mod.overview', Reviews: 'mod.reviews', KPIs: 'mod.kpis', Feedback: 'mod.feedback',
+};
 
 function KpiCard({ icon: Icon, label, value, color, bg }: { icon: any; label: string; value: string | number; color: string; bg: string }) {
   return (
@@ -34,6 +40,7 @@ function StatBadge({ score }: { score: number }) {
 }
 
 export function StaffPerformance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Overview');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -69,7 +76,7 @@ export function StaffPerformance() {
   return (
     <div>
       <div className="page-header">
-        <h1>Staff Performance</h1>
+        <h1>{t('mod.staffPerformance')}</h1>
         <p>Monitor and evaluate staff performance across the institution</p>
       </div>
 
@@ -77,7 +84,7 @@ export function StaffPerformance() {
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab}
+            {t(TAB_TRANSLATIONS[tab])}
           </button>
         ))}
       </div>

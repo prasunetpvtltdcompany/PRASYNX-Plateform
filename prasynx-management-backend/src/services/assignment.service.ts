@@ -50,7 +50,7 @@ export class AssignmentService {
   }
 
   async getAssignments(orgId: string, filters: any) {
-    let query = supabase.from('assignments').select('*, subject:subjects(*), class:classes(*), teacher:teachers(*)', { count: 'exact' }).eq('organisation_id', orgId);
+    let query = supabase.from('assignments').select('*, subject:subjects(*), class:classes(*), teacher:staff_records(*)', { count: 'exact' }).eq('organisation_id', orgId);
     if (filters.class_id) query = query.eq('class_id', filters.class_id);
     if (filters.section) query = query.eq('section', filters.section);
     if (filters.subject_id) query = query.eq('subject_id', filters.subject_id);
@@ -71,7 +71,7 @@ export class AssignmentService {
   }
 
   async getAssignmentById(assignmentId: string) {
-    const { data, error } = await supabase.from('assignments').select('*, subject:subjects(*), class:classes(*), teacher:teachers(*)').eq('id', assignmentId).single();
+    const { data, error } = await supabase.from('assignments').select('*, subject:subjects(*), class:classes(*), teacher:staff_records(*)').eq('id', assignmentId).single();
     if (error) throw error;
     const { data: submissions } = await supabase.from('assignment_submissions').select('*, student:students(*)').eq('assignment_id', assignmentId).order('submitted_at', { ascending: false });
     const { data: rubrics } = await supabase.from('assignment_rubrics').select('*').eq('assignment_id', assignmentId);
@@ -86,7 +86,7 @@ export class AssignmentService {
     if (!payload.max_score) payload.max_score = 100;
     if (!payload.passing_score) payload.passing_score = 40;
     if (body.attachment_urls && typeof body.attachment_urls === 'string') payload.attachment_urls = JSON.parse(body.attachment_urls);
-    const { data, error } = await supabase.from('assignments').insert(payload).select('*, subject:subjects(*), class:classes(*), teacher:teachers(*)').single();
+    const { data, error } = await supabase.from('assignments').insert(payload).select('*, subject:subjects(*), class:classes(*), teacher:staff_records(*)').single();
     if (error) throw error;
     await this.logActivity(orgId, data.id, 'assignment_created', 'system', { title: payload.title });
     return data;
@@ -94,7 +94,7 @@ export class AssignmentService {
 
   async updateAssignment(assignmentId: string, body: any) {
     if (body.attachment_urls && typeof body.attachment_urls === 'string') body.attachment_urls = JSON.parse(body.attachment_urls);
-    const { data, error } = await supabase.from('assignments').update(body).eq('id', assignmentId).select('*, subject:subjects(*), class:classes(*), teacher:teachers(*)').single();
+    const { data, error } = await supabase.from('assignments').update(body).eq('id', assignmentId).select('*, subject:subjects(*), class:classes(*), teacher:staff_records(*)').single();
     if (error) throw error;
     return data;
   }
@@ -263,7 +263,7 @@ export class AssignmentService {
   async getReports(orgId: string, type: string, filters: any) {
     switch (type) {
       case 'assignment': {
-        const { data } = await supabase.from('assignments').select('*, subject:subjects(name), class:classes(name), teacher:teachers(full_name)').eq('organisation_id', orgId).order('created_at', { ascending: false });
+        const { data } = await supabase.from('assignments').select('*, subject:subjects(name), class:classes(name), teacher:staff_records(full_name)').eq('organisation_id', orgId).order('created_at', { ascending: false });
         return { assignments: data || [], total: (data || []).length };
       }
       case 'submission': {

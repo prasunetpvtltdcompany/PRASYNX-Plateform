@@ -63,16 +63,24 @@ export class RolesService {
 
   async assignPermissions(roleId: string, body: any) {
     const { permission_ids } = body;
+    const { data: role } = await supabase
+      .from('roles')
+      .select('organisation_id')
+      .eq('id', roleId)
+      .maybeSingle();
+    const organisation_id = role?.organisation_id;
+
     await supabase.from('role_permissions').delete().eq('role_id', roleId);
     if (permission_ids?.length) {
       const inserts = permission_ids.map((permission_id: string) => ({
         role_id: roleId,
         permission_id,
+        organisation_id,
       }));
       const { error } = await supabase.from('role_permissions').insert(inserts);
       if (error) throw error;
     }
-    return { assigned: true };
+    return { assigned: true, organisation_id };
   }
 
   async getPermissions(orgId: string) {
@@ -104,15 +112,17 @@ export class RolesService {
   }
 
   async updateUserRole(userId: string, body: any) {
-    const { role } = body;
-    const { data, error } = await supabase.from('users').update({ role }).eq('id', userId).select().single();
+    const updates: any = {};
+    if (body.role !== undefined) updates.role = body.role;
+    if (body.status !== undefined) updates.status = body.status;
+    const { data, error } = await supabase.from('users').update(updates).eq('id', userId).select().single();
     if (error) throw error;
 
     await supabase.from('role_audit_logs').insert({
       organisation_id: data.organisation_id,
       user_id: userId,
-      action: 'role_changed',
-      details: { new_role: role },
+      action: body.role ? 'role_changed' : 'status_changed',
+      details: body.role ? { new_role: body.role } : { new_status: body.status },
     });
 
     return data;

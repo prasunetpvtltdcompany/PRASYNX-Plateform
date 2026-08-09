@@ -106,7 +106,7 @@ export class EsportsService {
   async getPlayers(orgId: string, teamId?: string) {
     let query = supabase
       .from('esports_players')
-      .select('*, team:esports_teams(name, tag), student:students(full_name, roll_number, student_class)')
+      .select('*, team:esports_teams(name, tag), student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId);
     if (teamId) query = query.eq('team_id', teamId);
     const { data } = await query.order('joined_at', { ascending: false });
@@ -116,7 +116,7 @@ export class EsportsService {
       teamTag: p.team?.tag,
       studentName: p.student?.full_name,
       studentRoll: p.student?.roll_number,
-      studentClass: p.student?.student_class,
+      studentClass: p.student?.classes?.name,
     }));
   }
 

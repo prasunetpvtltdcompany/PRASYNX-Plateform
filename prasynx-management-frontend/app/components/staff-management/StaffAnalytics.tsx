@@ -9,13 +9,20 @@ import {
 } from 'recharts';
 import { useApi, LoadingSkeleton, ErrorState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Card } from '@/components/ui/card';
 import {
   Users, TrendingUp, BarChart3, PieChart as PieChartIcon,
   Activity, Target, AlertTriangle, Download
 } from 'lucide-react';
 
-const TABS = ['Overview', 'Departments', 'Attrition', 'Reports'];
+const TABS = ['Overview', 'Departments', 'Attrition', 'Reports'] as const;
+type TabKey = typeof TABS[number];
+
+const TAB_TRANSLATIONS: Record<TabKey, string> = {
+  Overview: 'mod.overview', Departments: 'mod.departments',
+  Attrition: 'mod.attrition', Reports: 'mod.reports',
+};
 
 const COLORS = ['#6D4CFF', '#10B981', '#F59E0B', '#EF4444', '#3B82F6', '#EC4899', '#8B5CF6', '#14B8A6'];
 
@@ -45,6 +52,7 @@ function ChartCard({ title, icon: Icon, children }: { title: string; icon: any; 
 }
 
 export function StaffAnalytics() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
 
   const staffAnalytics = useApi(() => enterpriseStaffApi.getStaffAnalytics(), []);
@@ -293,7 +301,7 @@ export function StaffAnalytics() {
   return (
     <div className="w-full min-w-0">
       <div className="page-header">
-        <h1>Staff Analytics</h1>
+        <h1>{t('mod.staffAnalytics')}</h1>
         <p>Comprehensive analytics and insights for workforce management</p>
       </div>
 
@@ -302,7 +310,7 @@ export function StaffAnalytics() {
         {TABS.map((tab, i) => (
           <button key={tab} onClick={() => setActiveTab(i)}
             className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab}
+            {t(TAB_TRANSLATIONS[tab])}
           </button>
         ))}
       </div>

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
@@ -12,7 +13,13 @@ import {
 } from 'lucide-react';
 import { toast } from 'sonner';
 
-const TABS = ['Timetable', 'Work Assignments', 'Workload Distribution'];
+const TABS = ['Timetable', 'Work Assignments', 'Workload Distribution'] as const;
+type TabKey = typeof TABS[number];
+
+const TAB_TRANSLATIONS: Record<TabKey, string> = {
+  Timetable: 'mod.timetable', 'Work Assignments': 'mod.workAssignments', 'Workload Distribution': 'mod.workloadDistribution',
+};
+
 const DAYS = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 
 function StatusBadge({ status }: { status: string }) {
@@ -25,6 +32,7 @@ function StatusBadge({ status }: { status: string }) {
 }
 
 export function StaffScheduleManagement() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('Timetable');
   const [searchTerm, setSearchTerm] = useState('');
 
@@ -74,7 +82,7 @@ export function StaffScheduleManagement() {
   return (
     <div>
       <div className="page-header">
-        <h1>Staff Schedule Management</h1>
+        <h1>{t('mod.staffSchedule')}</h1>
         <p>Manage timetables, work assignments, and workload distribution</p>
       </div>
 
@@ -82,7 +90,7 @@ export function StaffScheduleManagement() {
         {TABS.map(tab => (
           <button key={tab} onClick={() => setActiveTab(tab)}
             className={`flex-1 px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === tab ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab}
+            {t(TAB_TRANSLATIONS[tab])}
           </button>
         ))}
       </div>

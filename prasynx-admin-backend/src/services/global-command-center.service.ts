@@ -30,7 +30,7 @@ export class GlobalCommandCenterService {
       const [orgs, students, staff, parents] = await Promise.all([
         supabase.from('organisations').select('*', { count: 'exact', head: true }),
         supabase.from('students').select('*', { count: 'exact', head: true }),
-        supabase.from('teachers').select('*', { count: 'exact', head: true }),
+        supabase.from('staff_records').select('*', { count: 'exact', head: true }),
         supabase.from('parents').select('*', { count: 'exact', head: true }),
       ]);
       sendSuccess(res, {

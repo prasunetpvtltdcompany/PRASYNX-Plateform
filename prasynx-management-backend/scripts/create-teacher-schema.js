@@ -14,7 +14,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_assignments (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       assignment_type TEXT NOT NULL, -- 'ACADEMIC', 'CLASS_TEACHER', 'EXAM', 'CLUB', 'EVENT', 'HOUSE', 'MENTORSHIP', 'COMMITTEE'
       assignment_name TEXT NOT NULL, -- e.g. "Grade 5A", "Debate Club"
       target_id TEXT,
@@ -27,7 +27,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_classes (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       class_id UUID,
       section_id UUID,
       class_name TEXT NOT NULL,
@@ -40,7 +40,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_subjects (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       subject_id UUID,
       subject_name TEXT NOT NULL,
       class_name TEXT NOT NULL,
@@ -52,7 +52,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_homework (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       class_name TEXT NOT NULL,
       subject_name TEXT NOT NULL,
       title TEXT NOT NULL,
@@ -83,7 +83,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_attendance (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       class_name TEXT NOT NULL,
       student_id UUID,
       student_name TEXT NOT NULL,
@@ -97,7 +97,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_exams (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       exam_name TEXT NOT NULL,
       class_name TEXT NOT NULL,
       subject_name TEXT NOT NULL,
@@ -123,7 +123,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_ptm (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       parent_name TEXT NOT NULL,
       student_name TEXT NOT NULL,
       meeting_date DATE NOT NULL,
@@ -137,7 +137,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_resources (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       resource_name TEXT NOT NULL,
       resource_type TEXT NOT NULL CHECK (resource_type IN ('PDF', 'VIDEO', 'PPT', 'NOTES')),
       subject_name TEXT NOT NULL,
@@ -149,7 +149,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_tasks (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       description TEXT,
       status TEXT DEFAULT 'PENDING' CHECK (status IN ('PENDING', 'IN_PROGRESS', 'REVIEW', 'COMPLETED', 'OVERDUE')),
@@ -163,7 +163,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_performance (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       metric_name TEXT NOT NULL,
       metric_value NUMERIC(5,2) NOT NULL,
       rating_period TEXT NOT NULL,
@@ -174,7 +174,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_communications (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       recipient_type TEXT NOT NULL CHECK (recipient_type IN ('PARENT', 'STUDENT', 'MANAGEMENT', 'COORDINATOR', 'TEACHER')),
       recipient_name TEXT NOT NULL,
       message_text TEXT NOT NULL,
@@ -186,7 +186,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_notifications (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       title TEXT NOT NULL,
       message TEXT NOT NULL,
       notification_type TEXT NOT NULL,
@@ -198,7 +198,7 @@ async function main() {
     CREATE TABLE IF NOT EXISTS public.teacher_activity_logs (
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID NOT NULL REFERENCES public.organisations(id) ON DELETE CASCADE,
-      teacher_id UUID NOT NULL REFERENCES public.teachers(id) ON DELETE CASCADE,
+      teacher_id UUID NOT NULL REFERENCES public.staff_records(id) ON DELETE CASCADE,
       action TEXT NOT NULL,
       details JSONB DEFAULT '{}'::jsonb,
       created_at TIMESTAMPTZ DEFAULT NOW()
@@ -260,8 +260,8 @@ async function main() {
     await client.query(query);
     console.log('Successfully created the 15 teacher workforce tables and set up RLS policies.');
     
-    // Now let's seed realistic data for all teachers in public.teachers
-    const teachersRes = await client.query('SELECT id, organisation_id, full_name FROM public.teachers');
+    // Now let's seed realistic data for all teachers in public.staff_records
+    const teachersRes = await client.query('SELECT id, organisation_id, full_name FROM public.staff_records');
     const teachers = teachersRes.rows;
     console.log(`Found ${teachers.length} teachers to seed.`);
 

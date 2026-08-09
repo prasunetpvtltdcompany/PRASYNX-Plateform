@@ -82,7 +82,7 @@ export class AiInsightsController {
     try {
       const { data } = await supabase
         .from('teacher_effectiveness')
-        .select('*, teacher:teachers(*)')
+        .select('*, teacher:staff_records(*)')
         .eq('organisation_id', req.params.org_id);
       sendSuccess(res, data || []);
     } catch (e: any) { sendError(res, e.message); }

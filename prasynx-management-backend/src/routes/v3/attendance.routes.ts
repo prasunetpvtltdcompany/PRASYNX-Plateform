@@ -3,49 +3,25 @@ import { supabase } from '../../lib/backend-common';
 
 const router = Router();
 
-router.param('org_id', (req, res, next, value) => {
-  if (value && value !== (req as any).user?.organisationId) {
-    return res.status(403).json({ error: 'Tenant access denied' });
-  }
-  next();
-});
-
-router.post('/attendance/bulk', async (req: Request, res: Response) => {
-  const { organisation_id, teacher_id, class_id, date, records } = req.body;
-  if (!organisation_id || !date || !Array.isArray(records) || records.length === 0) {
-    return res.status(400).json({ error: 'organisation_id, date, and records array required' });
-  }
-  try {
-    const { data: students } = await supabase.from('students').select('id, full_name, roll_number').eq('organisation_id', organisation_id);
-    if (!students) return res.status(404).json({ error: 'No students found' });
-    const studentIds = new Set(students.map(s => s.id));
-    const validRecords = records.filter((r: any) => studentIds.has(r.student_id) && ['present', 'absent', 'late', 'excused'].includes(r.status));
-    if (validRecords.length === 0) return res.status(400).json({ error: 'No valid records provided' });
-    const upsertData = validRecords.map((r: any) => ({
-      organisation_id, student_id: r.student_id, teacher_id: teacher_id || null,
-      date, status: r.status, notes: r.notes || null
-    }));
-    const { data, error } = await supabase.from('attendance').upsert(upsertData, { onConflict: 'student_id,date' }).select();
-    if (error) throw error;
-    res.status(201).json(data || []);
-  } catch (e: any) { res.status(500).json({ error: e.message }); }
-});
-
+// GET /attendance/class/:class_id/:date - Get students and attendance for a class
 router.get('/attendance/class/:class_id/:date', async (req: Request, res: Response) => {
   const { class_id, date } = req.params;
   try {
-    const { data: cls } = await supabase.from('classes').select('name').eq('id', class_id).single();
-    if (!cls) return res.json({ students: [], attendance: [] });
-    const { data: students } = await supabase.from('students').select('id, full_name, roll_number, student_class, section')
-      .eq('student_class', cls.name).eq('status', 'active');
+    const { data: students } = await supabase.from('students')
+      .select('id, full_name, roll_number, class_id, section_id, sections(name)')
+      .eq('class_id', class_id).eq('status', 'active');
     const studentIds = (students || []).map(s => s.id);
     const { data: attendance } = studentIds.length > 0
       ? await supabase.from('attendance').select('*').in('student_id', studentIds).eq('date', date)
       : { data: [] };
-    res.json({ students: students || [], attendance: attendance || [] });
+    const mapped = (students || []).map((s: any) => ({
+      ...s, student_class: '', section: (Array.isArray(s.sections) ? s.sections[0]?.name : s.sections?.name) || ''
+    }));
+    res.json({ students: mapped, attendance: attendance || [] });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// POST /attendance/toggle
 router.post('/attendance/toggle', async (req: Request, res: Response) => {
   const { organisation_id, student_id, teacher_id, date, status } = req.body;
   if (!organisation_id || !student_id || !date || !status) {
@@ -61,6 +37,7 @@ router.post('/attendance/toggle', async (req: Request, res: Response) => {
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /attendance/student/:student_id
 router.get('/attendance/student/:student_id', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('attendance').select('*')
@@ -73,12 +50,13 @@ router.get('/attendance/student/:student_id', async (req: Request, res: Response
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /attendance/daily/:org_id/:date
 router.get('/attendance/daily/:org_id/:date', async (req: Request, res: Response) => {
   const { org_id, date } = req.params;
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, student_class, section').eq('organisation_id', org_id),
-      supabase.from('attendance').select('*, student:students(full_name, roll_number, student_class)').eq('organisation_id', org_id).eq('date', date)
+      supabase.from('students').select('id, full_name, roll_number, class_id, section_id, classes(name), sections(name)').eq('organisation_id', org_id),
+      supabase.from('attendance').select('*, student:students(id, full_name, roll_number, class_id, classes(name))').eq('organisation_id', org_id).eq('date', date)
     ]);
     const students = studentsRes.data || [];
     const attendance = attendanceRes.data || [];
@@ -88,12 +66,12 @@ router.get('/attendance/daily/:org_id/:date', async (req: Request, res: Response
     const late = attendance.filter((a: any) => a.status === 'late').length;
     const byClass: Record<string, { total: number; present: number; absent: number; late: number; marked: number }> = {};
     students.forEach(s => {
-      const cls = s.student_class || 'Unknown';
+      const cls = (s as any).classes?.name || 'Unknown';
       if (!byClass[cls]) byClass[cls] = { total: 0, present: 0, absent: 0, late: 0, marked: 0 };
       byClass[cls].total++;
     });
     attendance.forEach((a: any) => {
-      const cls = a.student?.student_class || 'Unknown';
+      const cls = a.student?.classes?.name || 'Unknown';
       if (!byClass[cls]) byClass[cls] = { total: 0, present: 0, absent: 0, late: 0, marked: 0 };
       byClass[cls].marked++;
       if (a.status === 'present') byClass[cls].present++;
@@ -104,11 +82,12 @@ router.get('/attendance/daily/:org_id/:date', async (req: Request, res: Response
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /attendance-report/:org_id
 router.get('/attendance-report/:org_id', async (req: Request, res: Response) => {
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, student_class, section').eq('organisation_id', req.params.org_id),
-      supabase.from('attendance').select('*, student:students(full_name, roll_number, student_class)')
+      supabase.from('students').select('id, full_name, roll_number, class_id, section_id, classes(name), sections(name)').eq('organisation_id', req.params.org_id),
+      supabase.from('attendance').select('*, student:students(id, full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id).order('date', { ascending: false }).limit(5000)
     ]);
     const students = studentsRes.data || [];
@@ -122,7 +101,7 @@ router.get('/attendance-report/:org_id', async (req: Request, res: Response) => 
     const overallPercentage = totalRecords > 0 ? Math.round((presentCount / totalRecords) * 100) : 0;
     const attendanceByClass: Record<string, { present: number; total: number }> = {};
     attendance.forEach((a: any) => {
-      const cls = a.student?.student_class || 'Unknown';
+      const cls = a.student?.classes?.name || 'Unknown';
       if (!attendanceByClass[cls]) attendanceByClass[cls] = { present: 0, total: 0 };
       attendanceByClass[cls].total++;
       if (a.status === 'present') attendanceByClass[cls].present++;
@@ -139,11 +118,12 @@ router.get('/attendance-report/:org_id', async (req: Request, res: Response) => 
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
+// GET /academic-report/:org_id
 router.get('/academic-report/:org_id', async (req: Request, res: Response) => {
   try {
     const [studentsRes, gradesRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, student_class').eq('organisation_id', req.params.org_id),
-      supabase.from('grades').select('*, student:students(full_name, roll_number, student_class)')
+      supabase.from('students').select('id, full_name, roll_number, class_id, classes(name)').eq('organisation_id', req.params.org_id),
+      supabase.from('grades').select('*, student:students(id, full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id).order('created_at', { ascending: false }).limit(5000)
     ]);
     const students = studentsRes.data || [];

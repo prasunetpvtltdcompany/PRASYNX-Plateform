@@ -18,7 +18,7 @@ async function main() {
       id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
       organisation_id UUID REFERENCES public.organisations(id) ON DELETE CASCADE,
       organization_id UUID REFERENCES public.organisations(id) ON DELETE CASCADE,
-      staff_id UUID REFERENCES public.teachers(id) ON DELETE CASCADE,
+      staff_id UUID REFERENCES public.staff_records(id) ON DELETE CASCADE,
       assignment_type TEXT NOT NULL,
       assignment_name TEXT NOT NULL,
       assignment_reference_id TEXT,

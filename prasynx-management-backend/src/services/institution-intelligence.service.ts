@@ -17,7 +17,7 @@ export class InstitutionIntelligenceService {
       { data: fees },
     ] = await Promise.all([
       supabase.from('students').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId).eq('status', 'active'),
-      supabase.from('teachers').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('staff_records').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId).eq('status', 'active'),
       supabase.from('classes').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId),
       supabase.from('users').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId).eq('role', 'staff').eq('status', 'active'),
       supabase.from('alumni').select('*', { count: 'exact', head: true }).eq('organisation_id', orgId),
@@ -168,12 +168,12 @@ export class InstitutionIntelligenceService {
 
     const { data: students } = await supabase
       .from('students')
-      .select('student_class, section, gender')
+      .select('class_id, section_id, gender, classes(name), sections(name)')
       .eq('organisation_id', orgId)
       .eq('status', 'active');
 
     const classSizes = (classes || []).map(c => {
-      const classStudents = (students || []).filter(s => s.student_class === c.name);
+      const classStudents = (students || []).filter(s => (s as any).classes?.name === c.name);
       return { className: c.name, gradeLevel: c.grade_level, capacity: c.capacity, enrolled: classStudents.length, utilization: c.capacity ? Math.round((classStudents.length / c.capacity) * 100) : 0 };
     });
 

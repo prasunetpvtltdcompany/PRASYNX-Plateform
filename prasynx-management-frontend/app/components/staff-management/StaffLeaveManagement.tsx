@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useApi } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { motion } from 'framer-motion';
 import {
   CalendarCheck, Clock, CheckCircle2, XCircle, Search, RefreshCw,
@@ -19,10 +20,10 @@ import {
 } from 'recharts';
 
 const TABS = [
-  { key: 'overview', label: 'Overview', icon: BarChart3 },
-  { key: 'requests', label: 'Leave Requests', icon: FileText },
-  { key: 'balances', label: 'Balances', icon: CalendarDays },
-  { key: 'analytics', label: 'Analytics', icon: PieChart },
+  { key: 'overview', labelKey: 'mod.overview', icon: BarChart3 },
+  { key: 'requests', labelKey: 'mod.leaveRequests', icon: FileText },
+  { key: 'balances', labelKey: 'mod.balances', icon: CalendarDays },
+  { key: 'analytics', labelKey: 'mod.analytics', icon: PieChart },
 ];
 
 const COLORS = ['#6D4CFF', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#A855F7', '#EC4899', '#14B8A6'];
@@ -54,6 +55,7 @@ function LoadingSkeleton({ rows = 4 }: { rows?: number }) {
 }
 
 export function StaffLeaveManagement() {
+  const { t } = useLanguage();
   const [tab, setTab] = useState('overview');
   const [search, setSearch] = useState('');
 
@@ -103,19 +105,19 @@ export function StaffLeaveManagement() {
   return (
     <div>
       <div className="page-header">
-        <h1>Leave Management</h1>
+        <h1>{t('mod.leaveManagement')}</h1>
         <p>Track and manage staff leave requests and balances</p>
       </div>
 
       <div className="flex gap-1 mb-6 p-1 bg-gray-50 rounded-2xl border border-gray-100 w-fit">
-        {TABS.map(t => {
-          const Icon = t.icon;
-          const active = tab === t.key;
+        {TABS.map(item => {
+          const Icon = item.icon;
+          const active = tab === item.key;
           return (
-            <button key={t.key} onClick={() => setTab(t.key)}
+            <button key={item.key} onClick={() => setTab(item.key)}
               className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-semibold transition-all whitespace-nowrap ${active ? 'bg-white text-gray-900 shadow-sm border border-gray-200' : 'text-gray-400 hover:text-gray-600'}`}>
               <Icon size={15} />
-              {t.label}
+              {t(item.labelKey)}
             </button>
           );
         })}

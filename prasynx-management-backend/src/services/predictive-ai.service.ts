@@ -64,7 +64,7 @@ export class PredictiveAiService {
   async getRiskAnalysis(orgId: string) {
     const { data: students } = await supabase
       .from('students')
-      .select('id, full_name, roll_number, class_id, section, risk_level, risk_score, attendance_pct, avg_grade, gpa, status')
+      .select('id, full_name, roll_number, class_id, section_id, sections(name), risk_level, risk_score, attendance_pct, avg_grade, gpa, status')
       .eq('organisation_id', orgId);
 
     const list = students || [];
@@ -115,7 +115,7 @@ export class PredictiveAiService {
   async getStudentPredictions(orgId: string, params?: { search?: string; class?: string; risk?: string }) {
     let query = supabase
       .from('students')
-      .select('id, full_name, roll_number, admission_number, class_id, section, photo_url, attendance_pct, avg_grade, gpa, risk_level, risk_score, status')
+      .select('id, full_name, roll_number, admission_number, class_id, section_id, sections(name), photo_url, attendance_pct, avg_grade, gpa, risk_level, risk_score, status')
       .eq('organisation_id', orgId);
 
     if (params?.search) {
@@ -133,7 +133,7 @@ export class PredictiveAiService {
       roll_number: s.roll_number,
       admission_number: s.admission_number,
       class: s.class_id,
-      section: s.section,
+      section: (s as any).sections?.name,
       photo_url: s.photo_url,
       attendancePct: s.attendance_pct || Math.round(Math.random() * 20 + 75),
       assignmentScore: Math.round(Math.random() * 20 + 70),

@@ -440,7 +440,7 @@ router.get('/teacher/attendance/:teacher_id', asyncHandler(async (req, res) => {
 
   // Resolve user_id if teacher_id is teachers.id
   const { data: teacher } = await supabase
-    .from('teachers')
+    .from('staff_records')
     .select('user_id')
     .eq('id', teacher_id)
     .maybeSingle();
@@ -480,7 +480,7 @@ router.get('/staff-attendance', asyncHandler(async (req: any, res) => {
 
   const [usersRes, teachersRes, attendanceRes] = await Promise.all([
     supabase.from('users').select('id, full_name, email, role, status').eq('organisation_id', organisation_id),
-    supabase.from('teachers').select('*').eq('organisation_id', organisation_id),
+    supabase.from('staff_records').select('*').eq('organisation_id', organisation_id),
     supabase.from('staff_attendance').select('*').eq('organisation_id', organisation_id).eq('attendance_date', targetDate)
   ]);
 
@@ -494,14 +494,17 @@ router.get('/staff-attendance', asyncHandler(async (req: any, res) => {
 
   const teacherMap = new Map(teachers.map((t: any) => [t.user_id, t]));
   const attendanceMap = new Map(attendance.map((a: any) => [a.staff_id, a]));
+  const roleLabelMap: Record<string, string> = { management: 'Super Admin', admin: 'Admin', principal: 'Principal', teacher: 'Teacher', staff: 'Staff' };
+  const nameMap = new Map(users.map((u: any) => [u.id, u.full_name]));
+  const roleMap = new Map(users.map((u: any) => [u.id, u.role]));
 
-  const records = users.filter((u: any) => ['admin', 'management', 'staff', 'teacher'].includes(u.role)).map((user: any) => {
+  const records = users.filter((u: any) => ['admin', 'staff', 'teacher'].includes(u.role)).map((user: any) => {
     const t = teacherMap.get(user.id);
     const att = attendanceMap.get(user.id);
     return {
       id: att?.id || null,
       staff_id: user.id,
-      employee_id: t?.staff_unique_id || t?.teacher_code || '—',
+      employee_id: t?.staff_unique_id || '—',
       employee_name: user.full_name,
       department: t?.department || 'General',
       role: user.role,
@@ -510,10 +513,15 @@ router.get('/staff-attendance', asyncHandler(async (req: any, res) => {
       check_in: att?.check_in || null,
       check_out: att?.check_out || null,
       working_hours: att?.working_hours || null,
-      status: att?.status || 'Absent',
+      status: att?.status || 'Not Marked',
       remarks: att?.remarks || '',
       marked_by: att?.marked_by || null,
+      marked_by_name: att?.marked_by ? (nameMap.get(att.marked_by) || null) : null,
+      marked_by_role: att?.marked_by ? (roleLabelMap[roleMap.get(att.marked_by)] || roleMap.get(att.marked_by) || null) : null,
       approved_by: att?.approved_by || null,
+      updated_by: att?.updated_by || null,
+      updated_by_name: att?.updated_by ? (nameMap.get(att.updated_by) || null) : null,
+      updated_by_role: att?.updated_by ? (roleLabelMap[roleMap.get(att.updated_by)] || roleMap.get(att.updated_by) || null) : null,
       created_at: att?.created_at || null,
       updated_at: att?.updated_at || null
     };
@@ -522,10 +530,234 @@ router.get('/staff-attendance', asyncHandler(async (req: any, res) => {
   res.json({ success: true, data: records });
 }));
 
+// Management: Monthly attendance summary per staff (with marker/editor trail)
+router.get('/staff-attendance/monthly', asyncHandler(async (req: any, res) => {
+  const organisation_id = req.user?.organisationId;
+  if (!organisation_id) {
+    return res.status(400).json({ success: false, error: 'Organisation ID missing' });
+  }
+  const { month } = req.query;
+  const targetMonth = month ? String(month) : new Date().toISOString().slice(0, 7);
+  const [startStr, endStr] = [targetMonth + '-01', targetMonth + '-31'];
+
+  const [usersRes, teachersRes, attendanceRes] = await Promise.all([
+    supabase.from('users').select('id, full_name, email, role, status').eq('organisation_id', organisation_id),
+    supabase.from('staff_records').select('*').eq('organisation_id', organisation_id),
+    supabase.from('staff_attendance').select('*').eq('organisation_id', organisation_id).gte('attendance_date', startStr).lte('attendance_date', endStr)
+  ]);
+
+  if (usersRes.error) throw usersRes.error;
+  if (teachersRes.error) throw teachersRes.error;
+  if (attendanceRes.error) throw attendanceRes.error;
+
+  const users = usersRes.data || [];
+  const teachers = teachersRes.data || [];
+  const attendance = attendanceRes.data || [];
+
+  const teacherMap = new Map(teachers.map((t: any) => [t.user_id, t]));
+  const byStaff = new Map<string, any[]>();
+  attendance.forEach((a: any) => {
+    const list = byStaff.get(a.staff_id) || [];
+    list.push(a);
+    byStaff.set(a.staff_id, list);
+  });
+
+  const roleLabelMap: Record<string, string> = { management: 'Super Admin', admin: 'Admin', principal: 'Principal', teacher: 'Teacher', staff: 'Staff' };
+  const nameMap = new Map(users.map((u: any) => [u.id, u.full_name]));
+  const roleMap = new Map(users.map((u: any) => [u.id, u.role]));
+
+  const records = users.filter((u: any) => ['admin', 'staff', 'teacher'].includes(u.role)).map((user: any) => {
+    const t = teacherMap.get(user.id);
+    const rows = byStaff.get(user.id) || [];
+    const count = (s: string) => rows.filter((r: any) => (r.status || '').toLowerCase() === s.toLowerCase()).length;
+    const present = count('Present');
+    const late = count('Late');
+    const absent = count('Absent');
+    const leave = count('Leave') + count('On Leave');
+    const half = count('Half Day');
+    const holiday = count('Holiday');
+    const wfh = count('Work From Home');
+    const totalMarked = rows.length;
+    const lastEdit = rows.reduce((latest: any, r: any) => !latest || (new Date(r.updated_at || 0) > new Date(latest.updated_at || 0)) ? r : latest, null);
+    return {
+      staff_id: user.id,
+      employee_id: t?.staff_unique_id || '—',
+      employee_name: user.full_name,
+      department: t?.department || 'General',
+      designation: t?.designation || user.role,
+      present,
+      late,
+      absent,
+      leave,
+      half,
+      holiday,
+      wfh,
+      totalMarked,
+      attendance_rate: totalMarked > 0 ? Math.round(((present + late + half + wfh) / totalMarked) * 100) : 0,
+      marked_by_name: lastEdit?.marked_by ? (nameMap.get(lastEdit.marked_by) || null) : null,
+      marked_by_role: lastEdit?.marked_by ? (roleLabelMap[roleMap.get(lastEdit.marked_by)] || roleMap.get(lastEdit.marked_by) || null) : null,
+      updated_by_name: lastEdit?.updated_by ? (nameMap.get(lastEdit.updated_by) || null) : null,
+      updated_by_role: lastEdit?.updated_by ? (roleLabelMap[roleMap.get(lastEdit.updated_by)] || roleMap.get(lastEdit.updated_by) || null) : null,
+      last_updated_at: lastEdit?.updated_at || null
+    };
+  });
+
+  const deptSummary: Record<string, { total: number; present: number; late: number; absent: number; leave: number }> = {};
+  records.forEach((r: any) => {
+    const d = deptSummary[r.department] || { total: 0, present: 0, late: 0, absent: 0, leave: 0 };
+    d.total += r.totalMarked;
+    d.present += r.present;
+    d.late += r.late;
+    d.absent += r.absent;
+    d.leave += r.leave;
+    deptSummary[r.department] = d;
+  });
+  const depts = Object.entries(deptSummary).map(([name, d]) => ({ name, ...d, rate: d.total > 0 ? Math.round(((d.present + d.late) / d.total) * 100) : 0 }));
+
+  const totalMarked = records.reduce((s: number, r: any) => s + r.totalMarked, 0);
+  const totalPresent = records.reduce((s: number, r: any) => s + r.present + r.late + r.half + r.wfh, 0);
+  const avgRate = totalMarked > 0 ? Math.round((totalPresent / totalMarked) * 100) : 0;
+
+  res.json({ success: true, data: { month: targetMonth, records, departments: depts, avgRate, totalMarked } });
+}));
+
+// Staff detail: daily attendance records (with dates) for one staff member
+router.get('/staff-attendance/:staff_id', asyncHandler(async (req: any, res) => {
+  const organisation_id = req.user?.organisationId;
+  if (!organisation_id) {
+    return res.status(400).json({ success: false, error: 'Organisation ID missing' });
+  }
+  const { staff_id } = req.params;
+  const { month, days } = req.query;
+  let startStr: string;
+  let endStr: string;
+  if (days) {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - (Number(days) - 1));
+    startStr = start.toISOString().split('T')[0];
+    endStr = end.toISOString().split('T')[0];
+  } else {
+    const targetMonth = month ? String(month) : new Date().toISOString().slice(0, 7);
+    startStr = `${targetMonth}-01`;
+    endStr = `${targetMonth}-31`;
+  }
+
+  const { data, error } = await supabase
+    .from('staff_attendance')
+    .select('id, staff_id, attendance_date, check_in, check_out, working_hours, status, remarks')
+    .eq('organisation_id', organisation_id)
+    .eq('staff_id', staff_id)
+    .gte('attendance_date', startStr)
+    .lte('attendance_date', endStr)
+    .order('attendance_date', { ascending: true });
+
+  if (error) throw error;
+  res.json({ success: true, data: data || [] });
+}));
+
+// Management: Staff dashboard analytics — attendance trend + department/role distribution
+router.get('/staff-dashboard-analytics', asyncHandler(async (req: any, res) => {
+  const organisation_id = req.user?.organisationId;
+  if (!organisation_id) {
+    return res.status(400).json({ success: false, error: 'Organisation ID missing' });
+  }
+
+  const days = Math.min(Math.max(parseInt(String(req.query.days || '14'), 10) || 14, 1), 90);
+
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - (days - 1));
+  since.setUTCHours(0, 0, 0, 0);
+
+  const [staffRes, attendanceRes] = await Promise.all([
+    supabase.from('staff_records').select('id, department, role, status, gender, employment_type').eq('organisation_id', organisation_id),
+    supabase.from('staff_attendance').select('attendance_date, status').eq('organisation_id', organisation_id).gte('attendance_date', since.toISOString().split('T')[0])
+  ]);
+
+  if (staffRes.error) throw staffRes.error;
+  if (attendanceRes.error) throw attendanceRes.error;
+
+  const staff = staffRes.data || [];
+  const attendance = attendanceRes.data || [];
+
+  // Department distribution
+  const deptCounts: Record<string, number> = {};
+  staff.forEach((s: any) => {
+    const d = (s.department || 'General').trim() || 'General';
+    deptCounts[d] = (deptCounts[d] || 0) + 1;
+  });
+  const departmentDistribution = Object.entries(deptCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Role distribution
+  const roleCounts: Record<string, number> = {};
+  staff.forEach((s: any) => {
+    const r = (s.role || 'staff').trim() || 'staff';
+    roleCounts[r] = (roleCounts[r] || 0) + 1;
+  });
+  const roleDistribution = Object.entries(roleCounts)
+    .map(([name, count]) => ({ name, count }))
+    .sort((a, b) => b.count - a.count);
+
+  // Attendance trend over last N days
+  const byDate: Record<string, Record<string, number>> = {};
+  attendance.forEach((a: any) => {
+    const date = (a.attendance_date || '').slice(0, 10);
+    const status = (a.status || 'Present').trim() || 'Present';
+    if (!byDate[date]) byDate[date] = {};
+    byDate[date][status] = (byDate[date][status] || 0) + 1;
+  });
+
+  const attendanceTrend: any[] = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const d = new Date();
+    d.setUTCDate(d.getUTCDate() - i);
+    const key = d.toISOString().split('T')[0];
+    const day = byDate[key] || {};
+    const labelDate = new Date(key + 'T00:00:00Z');
+    attendanceTrend.push({
+      date: key,
+      label: labelDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', timeZone: 'UTC' }),
+      Present: day['Present'] || 0,
+      Absent: day['Absent'] || 0,
+      Late: day['Late'] || 0,
+      Leave: (day['Leave'] || 0) + (day['On Leave'] || 0),
+      'Half Day': day['Half Day'] || 0,
+      total: Object.values(day).reduce((sum: number, v: any) => sum + (v || 0), 0)
+    });
+  }
+
+  const totalStaff = staff.length;
+  const presentToday = attendanceTrend[attendanceTrend.length - 1]?.Present || 0;
+  const absentToday = attendanceTrend[attendanceTrend.length - 1]?.Absent || 0;
+  const todayRate = totalStaff > 0 ? Math.round(((presentToday + (attendanceTrend[attendanceTrend.length - 1]?.Late || 0)) / totalStaff) * 100) : 0;
+
+  // 7-day rolling average attendance rate
+  const last7 = attendanceTrend.slice(-7).filter((d: any) => d.total > 0);
+  const weekRate = last7.length > 0
+    ? Math.round((last7.reduce((sum: number, d: any) => sum + (d.Present + d.Late), 0) / last7.reduce((sum: number, d: any) => sum + d.total, 0)) * 100)
+    : 0;
+
+  res.json({
+    success: true,
+    data: {
+      totalStaff,
+      presentToday,
+      absentToday,
+      todayRate,
+      weekRate,
+      attendanceTrend,
+      departmentDistribution,
+      roleDistribution
+    }
+  });
+}));
+
 // Management: Mark / Save daily attendance list
 router.post('/staff-attendance', asyncHandler(async (req: any, res) => {
   const organisation_id = req.user?.organisationId;
-  const marked_by = req.user?.id;
+  const current_user = req.user?.id;
   if (!organisation_id) {
     return res.status(400).json({ success: false, error: 'Organisation ID missing' });
   }
@@ -535,21 +767,43 @@ router.post('/staff-attendance', asyncHandler(async (req: any, res) => {
     return res.status(400).json({ success: false, error: 'Date and records array required' });
   }
 
-  const upsertData = records.map((r: any) => ({
-    ...(r.id ? { id: r.id } : {}),
-    organisation_id,
-    organization_id: organisation_id,
-    staff_id: r.staff_id,
-    attendance_date: date,
-    check_in: r.check_in || null,
-    check_out: r.check_out || null,
-    working_hours: r.working_hours !== undefined && r.working_hours !== null ? parseFloat(String(r.working_hours)) : null,
-    status: r.status || 'Present',
-    remarks: r.remarks || null,
-    marked_by: r.marked_by || marked_by || null,
-    approved_by: r.approved_by || null,
-    updated_at: new Date().toISOString()
-  }));
+  const today = new Date().toISOString().split('T')[0];
+  if (date !== today) {
+    return res.status(400).json({ success: false, error: 'Attendance can only be marked for today. Marking for past or future dates is not allowed.' });
+  }
+
+  // Fetch existing records to preserve original marked_by and record who edited
+  const staffIds = records.map((r: any) => r.staff_id).filter(Boolean);
+  const { data: existing } = await supabase
+    .from('staff_attendance')
+    .select('id, staff_id, marked_by')
+    .eq('organisation_id', organisation_id)
+    .eq('attendance_date', date)
+    .in('staff_id', staffIds.length ? staffIds : ['00000000-0000-0000-0000-000000000000']);
+
+  const existingMap = new Map((existing || []).map((e: any) => [e.staff_id, e]));
+  const now = new Date().toISOString();
+
+  const upsertData = records.map((r: any) => {
+    const prev = existingMap.get(r.staff_id);
+    const isNew = !prev;
+    return {
+      ...(r.id ? { id: r.id } : {}),
+      organisation_id,
+      organization_id: organisation_id,
+      staff_id: r.staff_id,
+      attendance_date: date,
+      check_in: r.check_in || null,
+      check_out: r.check_out || null,
+      working_hours: r.working_hours !== undefined && r.working_hours !== null ? parseFloat(String(r.working_hours)) : null,
+      status: r.status || 'Present',
+      remarks: r.remarks || null,
+      marked_by: isNew ? (r.marked_by || current_user || null) : (prev?.marked_by || null),
+      updated_by: isNew ? null : current_user,
+      approved_by: r.approved_by || null,
+      updated_at: now
+    };
+  });
 
   const { data, error } = await supabase
     .from('staff_attendance')
@@ -564,7 +818,7 @@ router.post('/staff-attendance', asyncHandler(async (req: any, res) => {
 router.put('/staff-attendance/:id', asyncHandler(async (req: any, res) => {
   const { id } = req.params;
   const organisation_id = req.user?.organisationId;
-  const approved_by = req.user?.id;
+  const current_user = req.user?.id;
   if (!organisation_id) {
     return res.status(400).json({ success: false, error: 'Organisation ID missing' });
   }
@@ -572,7 +826,8 @@ router.put('/staff-attendance/:id', asyncHandler(async (req: any, res) => {
   const { check_in, check_out, working_hours, status, remarks, is_approved } = req.body;
 
   const updateData: any = {
-    updated_at: new Date().toISOString()
+    updated_at: new Date().toISOString(),
+    updated_by: current_user
   };
   if (check_in !== undefined) updateData.check_in = check_in;
   if (check_out !== undefined) updateData.check_out = check_out;
@@ -580,7 +835,7 @@ router.put('/staff-attendance/:id', asyncHandler(async (req: any, res) => {
   if (status !== undefined) updateData.status = status;
   if (remarks !== undefined) updateData.remarks = remarks;
   if (is_approved) {
-    updateData.approved_by = approved_by;
+    updateData.approved_by = current_user;
   }
 
   const { data, error } = await supabase
@@ -590,6 +845,25 @@ router.put('/staff-attendance/:id', asyncHandler(async (req: any, res) => {
     .eq('organisation_id', organisation_id)
     .select()
     .single();
+
+  if (error) throw error;
+  res.json({ success: true, data });
+}));
+
+// Management/Staff: Delete a single attendance record
+router.delete('/staff-attendance/:id', asyncHandler(async (req: any, res) => {
+  const { id } = req.params;
+  const organisation_id = req.user?.organisationId;
+  if (!organisation_id) {
+    return res.status(400).json({ success: false, error: 'Organisation ID missing' });
+  }
+
+  const { data, error } = await supabase
+    .from('staff_attendance')
+    .delete()
+    .eq('id', id)
+    .eq('organisation_id', organisation_id)
+    .select();
 
   if (error) throw error;
   res.json({ success: true, data });

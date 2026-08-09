@@ -115,22 +115,26 @@ export class AcademicService {
   // ── Teacher Assignments (class_subject_teacher_map) ─────
   async getTeacherAssignments(orgId: string) {
     const { data, error } = await supabase.from('class_subject_teacher_map')
-      .select('*, class:classes(name), subject:subjects(name), teacher:teachers(full_name, teacher_code)')
-      .eq('organisation_id', orgId);
+      .select('*, class:classes!inner(id, name, organisation_id), subject:subjects(name), teacher:staff_records(full_name, staff_unique_id)')
+      .eq('class.organisation_id', orgId);
     if (error) throw new BadRequestError(error.message);
     return data || [];
   }
 
   async getTeacherAssignmentById(id: string) {
     const { data, error } = await supabase.from('class_subject_teacher_map')
-      .select('*, class:classes(name), subject:subjects(name), teacher:teachers(full_name, teacher_code)')
+      .select('*, class:classes(name), subject:subjects(name), teacher:staff_records(full_name, staff_unique_id)')
       .eq('id', id).single();
     if (error) throw new NotFoundError('Teacher assignment not found');
     return data;
   }
 
   async createTeacherAssignment(orgId: string, body: any) {
-    const { data, error } = await supabase.from('class_subject_teacher_map').insert({ ...body, organisation_id: orgId }).select().single();
+    const { class_id, subject_id, teacher_id, is_class_teacher, section_id } = body;
+    const { data, error } = await supabase.from('class_subject_teacher_map').insert({
+      class_id, subject_id, teacher_id: teacher_id || null, is_class_teacher: is_class_teacher || false,
+      organisation_id: orgId, section_id: section_id || null
+    }).select().single();
     if (error) throw new BadRequestError(error.message);
     return data;
   }
@@ -150,8 +154,8 @@ export class AcademicService {
   // ── Class Teacher ───────────────────────────────────────
   async getClassTeachers(orgId: string) {
     const { data, error } = await supabase.from('class_subject_teacher_map')
-      .select('*, class:classes(name), teacher:teachers(full_name, teacher_code)')
-      .eq('organisation_id', orgId).eq('is_class_teacher', true);
+      .select('*, class:classes!inner(id, name, organisation_id), teacher:staff_records(full_name, staff_unique_id)')
+      .eq('class.organisation_id', orgId).eq('is_class_teacher', true);
     if (error) throw new BadRequestError(error.message);
     return data || [];
   }
@@ -160,21 +164,21 @@ export class AcademicService {
     const { class_id, teacher_id } = body;
     await supabase.from('class_subject_teacher_map').update({ is_class_teacher: false }).eq('class_id', class_id).eq('is_class_teacher', true);
     const existing = await supabase.from('class_subject_teacher_map')
-      .select('id').eq('class_id', class_id).eq('teacher_id', teacher_id).eq('organisation_id', orgId).maybeSingle();
+      .select('id').eq('class_id', class_id).eq('teacher_id', teacher_id).maybeSingle();
     if (existing.data) {
       const { data, error } = await supabase.from('class_subject_teacher_map').update({ is_class_teacher: true }).eq('id', existing.data.id).select().single();
       if (error) throw new BadRequestError(error.message);
       return data;
     }
     const { data, error } = await supabase.from('class_subject_teacher_map').insert({
-      class_id, teacher_id, organisation_id: orgId, is_class_teacher: true
+      class_id, teacher_id, is_class_teacher: true, organisation_id: orgId
     }).select().single();
     if (error) throw new BadRequestError(error.message);
     return data;
   }
 
   async removeClassTeacher(orgId: string, classId: string) {
-    const { error } = await supabase.from('class_subject_teacher_map').update({ is_class_teacher: false }).eq('class_id', classId).eq('organisation_id', orgId).eq('is_class_teacher', true);
+    const { error } = await supabase.from('class_subject_teacher_map').update({ is_class_teacher: false }).eq('class_id', classId).eq('is_class_teacher', true);
     if (error) throw new BadRequestError(error.message);
     return { message: 'Class teacher removed' };
   }

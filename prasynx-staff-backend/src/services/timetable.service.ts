@@ -15,7 +15,7 @@ export class TimetableService {
   async getAdminTimetable(orgId: string) {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, class:classes(*), subject:subjects(*), teacher:teachers(*)')
+      .select('*, class:classes(*), subject:subjects(*), teacher:staff_records(*)')
       .eq('organisation_id', orgId)
       .order('day_of_week');
     if (error) throw new BadRequestError(error.message);

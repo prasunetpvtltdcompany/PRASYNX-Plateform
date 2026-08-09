@@ -1,4 +1,4 @@
-const CACHE = 'prasunet-management-v1';
+const CACHE = 'prasynx-management-v1';
 const urlsToCache = [
   '/',
   '/manifest.json',

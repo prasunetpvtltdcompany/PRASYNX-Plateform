@@ -108,6 +108,18 @@ router.post('/create-student', validateBody(createStudentSchema), async (req, re
       throw authError;
     }
 
+    // Resolve class_id and section_id
+    let resolvedClassId: string | null = null;
+    let resolvedSectionId: string | null = null;
+    if (student_class) {
+      const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
+      resolvedClassId = classData?.id || null;
+    }
+    if (section && resolvedClassId) {
+      const { data: sectData } = await supabase.from('sections').select('id').eq('name', section).eq('class_id', resolvedClassId).maybeSingle();
+      resolvedSectionId = sectData?.id || null;
+    }
+
     // Create student record
     const { data: student, error: studentError } = await supabase.from('students').insert({
       organisation_id,
@@ -115,7 +127,8 @@ router.post('/create-student', validateBody(createStudentSchema), async (req, re
       full_name,
       email,
       roll_number,
-      section,
+      class_id: resolvedClassId,
+      section_id: resolvedSectionId,
       status: 'active'
     }).select().single();
 
@@ -125,11 +138,12 @@ router.post('/create-student', validateBody(createStudentSchema), async (req, re
       throw studentError;
     }
 
-    if (student_class) {
-      const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
-      if (classData?.id) {
-        await supabase.from('class_student_map').insert({ class_id: classData.id, student_id: student.id });
-      }
+    if (resolvedClassId && student.id) {
+      await supabase.from('class_student_map').upsert({
+        class_id: resolvedClassId,
+        student_id: student.id,
+        organisation_id
+      }, { onConflict: 'class_id,student_id' });
     }
 
     getOrgName(organisation_id).then(orgName => logCredential(organisation_id, orgName, full_name, email, 'student', 'Management Portal'));
@@ -158,7 +172,7 @@ router.post('/create-staff', validateBody(createStaffSchema), async (req, res) =
   try {
     const password = generatePassword();
     const password_hash = await bcrypt.hash(password, 10);
-    const teacher_code = `STAFF-${Date.now()}`;
+    const staff_unique_id = `STAFF-${Date.now()}`;
     const staffRole = role || 'staff';
 
     // Create user account
@@ -183,11 +197,11 @@ router.post('/create-staff', validateBody(createStaffSchema), async (req, res) =
     }
 
     // Create staff record and link it to the user account
-    const { data: teacher, error: teacherError } = await supabase.from('teachers').insert({
+    const { data: teacher, error: teacherError } = await supabase.from('staff_records').insert({
       organisation_id,
       user_id: user.id,
       full_name,
-      teacher_code,
+      staff_unique_id,
       subject,
       phone,
       status: 'active'
@@ -208,7 +222,7 @@ router.post('/create-staff', validateBody(createStaffSchema), async (req, res) =
         email,
         password,
         role: staffRole,
-        teacher_code,
+        staff_unique_id,
         full_name
       },
       staff_id: teacher.id,
@@ -352,13 +366,26 @@ router.post('/bulk-create-students', validateBody(bulkCreateSchema), async (req,
         throw authError;
       }
 
+      // Resolve class_id and section_id
+      let resolvedClassId: string | null = null;
+      let resolvedSectionId: string | null = null;
+      if (student_class) {
+        const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
+        resolvedClassId = classData?.id || null;
+      }
+      if (section && resolvedClassId) {
+        const { data: sectData } = await supabase.from('sections').select('id').eq('name', section).eq('class_id', resolvedClassId).maybeSingle();
+        resolvedSectionId = sectData?.id || null;
+      }
+
       const { data: student, error: studentError } = await supabase.from('students').insert({
         organisation_id,
         user_id: user.id,
         full_name,
         email,
         roll_number,
-        section,
+        class_id: resolvedClassId,
+        section_id: resolvedSectionId,
         status: 'active'
       }).select().single();
 
@@ -368,11 +395,12 @@ router.post('/bulk-create-students', validateBody(bulkCreateSchema), async (req,
         throw studentError;
       }
 
-      if (student_class) {
-        const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
-        if (classData?.id) {
-          await supabase.from('class_student_map').insert({ class_id: classData.id, student_id: student.id });
-        }
+      if (resolvedClassId && student.id) {
+        await supabase.from('class_student_map').upsert({
+          class_id: resolvedClassId,
+          student_id: student.id,
+          organisation_id
+        }, { onConflict: 'class_id,student_id' });
       }
 
       await supabase.from('students').update({ parent_email: email }).eq('id', student.id);
@@ -408,7 +436,7 @@ router.post('/bulk-create-staff', validateBody(bulkCreateSchema), async (req, re
     try {
       const password = generatePassword();
       const password_hash = await bcrypt.hash(password, 10);
-      const teacher_code = `STAFF-${Date.now()}-${index}`;
+      const staff_unique_id = `STAFF-${Date.now()}-${index}`;
 
       const { data: user, error: userError } = await supabase.from('users').insert({
         organisation_id,
@@ -429,11 +457,11 @@ router.post('/bulk-create-staff', validateBody(bulkCreateSchema), async (req, re
         throw authError;
       }
 
-      const { error: teacherError } = await supabase.from('teachers').insert({
+      const { error: teacherError } = await supabase.from('staff_records').insert({
         organisation_id,
         user_id: user.id,
         full_name,
-        teacher_code,
+        staff_unique_id,
         subject,
         status: 'active'
       });
@@ -569,7 +597,7 @@ router.get('/students/:org_id', async (req, res) => {
   try {
     const { data: students, error } = await supabase
       .from('students')
-      .select('*, users:users(id, full_name, email, role, status, created_at)')
+      .select('*, users:users(id, full_name, email, role, status, created_at), classes(name), sections(name)')
       .eq('organisation_id', org_id);
 
     if (error) throw error;
@@ -579,8 +607,8 @@ router.get('/students/:org_id', async (req, res) => {
       full_name: s.full_name,
       email: s.email || s.users?.email || '',
       roll_number: s.roll_number,
-      student_class: s.student_class,
-      section: s.section,
+      student_class: s.classes?.name || '',
+      section: s.sections?.name || '',
       status: s.status || s.users?.status || 'active',
       created_at: s.created_at || s.users?.created_at || '',
       last_login: s.users?.last_login || ''
@@ -597,7 +625,7 @@ router.get('/staff/:org_id', async (req, res) => {
 
   try {
     const { data: teachers, error } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*, users:users!inner(id, full_name, email, role, status, created_at)')
       .eq('organisation_id', org_id);
 
@@ -728,7 +756,7 @@ router.get('/export-students/:org_id/csv', async (req, res) => {
   try {
     const { data: students, error } = await supabase
       .from('students')
-      .select('*, users:users(full_name, email, status, created_at)')
+      .select('*, users:users(full_name, email, status, created_at), classes(name), sections(name)')
       .eq('organisation_id', org_id)
       .order('created_at', { ascending: false });
 
@@ -737,8 +765,8 @@ router.get('/export-students/:org_id/csv', async (req, res) => {
     const rows = (students || []).map((s: any) => ({
       Name: s.full_name || '',
       Email: s.email || s.users?.email || '',
-      Class: s.student_class || '',
-      Section: s.section || '',
+      Class: s.classes?.name || '',
+      Section: s.sections?.name || '',
       Status: s.status || 'active',
       'Created Date': s.created_at ? new Date(s.created_at).toLocaleDateString() : ''
     }));
@@ -757,7 +785,7 @@ router.get('/export-staff/:org_id/csv', async (req, res) => {
   const { org_id } = req.params;
   try {
     const { data: staff, error } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*, users:users!inner(full_name, email, role, status, created_at)')
       .eq('organisation_id', org_id)
       .order('created_at', { ascending: false });

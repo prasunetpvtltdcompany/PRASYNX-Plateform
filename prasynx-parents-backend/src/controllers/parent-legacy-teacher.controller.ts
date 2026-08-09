@@ -9,7 +9,7 @@ export class ParentLegacyTeacherController {
       const classIds = classMap?.map(c => c.class_id) || [];
       let teachers: any[] = [];
       if (classIds.length > 0) {
-        const { data: cstm } = await supabase.from('class_subject_teacher_map').select('teacher:teachers(*)').in('class_id', classIds);
+        const { data: cstm } = await supabase.from('class_subject_teacher_map').select('teacher:staff_records(*)').in('class_id', classIds);
         teachers = cstm?.map((row: any) => row.teacher).filter(Boolean) || [];
       }
       res.json({ teachers });

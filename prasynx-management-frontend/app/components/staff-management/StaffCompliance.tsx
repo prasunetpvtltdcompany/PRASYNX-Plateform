@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
@@ -11,7 +12,12 @@ import {
   CheckCircle2, XCircle, Clock, Search, FileText
 } from 'lucide-react';
 
-const TABS = ['Certifications', 'Compliance Status', 'Audits'];
+const TABS = ['Certifications', 'Compliance Status', 'Audits'] as const;
+type TabKey = typeof TABS[number];
+
+const TAB_TRANSLATIONS: Record<TabKey, string> = {
+  Certifications: 'mod.certifications', 'Compliance Status': 'mod.complianceStatus', Audits: 'mod.audits',
+};
 
 function getCertBadge(status: string, expiry?: string) {
   const s = (status || '').toLowerCase();
@@ -43,6 +49,7 @@ const auditActions = [
 ];
 
 export function StaffCompliance() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
   const [certSearch, setCertSearch] = useState('');
 
@@ -87,7 +94,7 @@ export function StaffCompliance() {
         {TABS.map((tab, i) => (
           <button key={tab} onClick={() => setActiveTab(i)}
             className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab}
+            {t(TAB_TRANSLATIONS[tab])}
           </button>
         ))}
       </div>

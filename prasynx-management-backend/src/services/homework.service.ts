@@ -4,7 +4,7 @@ import { BadRequestError, NotFoundError } from '../utils/errors';
 export class HomeworkService {
   async getHomework(orgId: string) {
     const { data, error } = await supabase.from('homework')
-      .select('*, class:classes(name), section:sections(name), subject:subjects(name), teacher:teachers(full_name)')
+      .select('*, class:classes(name), section:sections(name), subject:subjects(name), teacher:staff_records(full_name)')
       .eq('organisation_id', orgId).order('due_date', { ascending: false });
     if (error) throw new BadRequestError(error.message);
     return data || [];
@@ -12,7 +12,7 @@ export class HomeworkService {
 
   async getHomeworkById(id: string) {
     const { data, error } = await supabase.from('homework')
-      .select('*, class:classes(name), section:sections(name), subject:subjects(name), teacher:teachers(full_name)')
+      .select('*, class:classes(name), section:sections(name), subject:subjects(name), teacher:staff_records(full_name)')
       .eq('id', id).single();
     if (error) throw new NotFoundError('Homework not found');
     return data;

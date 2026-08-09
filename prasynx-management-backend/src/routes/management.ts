@@ -4,16 +4,25 @@ import crypto from 'crypto';
 import { supabase } from '../lib/backend-common';
 import { createAuthUser } from '../lib/auth-helper';
 import { verifyManagementAuth, enforceOrgAccess } from '../middleware/verifyAuth';
-import { auditLog } from '../middleware/audit';
 import { credentialLimiter } from '../middleware/rateLimiter';
 import { config } from '../config';
 import { sendSuccess, sendError } from '../utils/response';
 import { asyncHandler } from '../utils/asyncHandler';
 import { trackChange, notifyRole, notifyStudentsInClass, notifyParentsOfStudentsInClass, notifyStaffAssignedToClass, notifyStudentParents } from '../utils/sync';
+import { sendCredentialEmail } from '../lib/mail.service';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function isValidUUID(v: any): boolean {
   return typeof v === 'string' && UUID_RE.test(v);
+}
+
+function generateAlphaDigitPassword(length = 6): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+  let password = '';
+  for (let i = 0; i < length; i++) {
+    password += chars[crypto.randomInt(0, chars.length)];
+  }
+  return password;
 }
 
 async function logCredential(orgId: string, orgName: string, fullName: string, email: string, role: string, createdBy: string, password?: string) {
@@ -37,6 +46,64 @@ async function getOrgName(orgId: string): Promise<string> {
   } catch { return ''; }
 }
 
+async function insertStudentCompat(payload: Record<string, any>) {
+  const first = await supabase.from('students').insert([payload]).select();
+  if (!first.error) return first;
+
+  const message = first.error.message || '';
+  if (payload.student_class && message.includes('invalid input syntax for type uuid')) {
+    const { student_class: _studentClass, ...legacyPayload } = payload;
+    return supabase.from('students').insert([legacyPayload]).select();
+  }
+
+  return first;
+}
+
+async function ensureDefaultClasses(orgId: string) {
+  if (!isValidUUID(orgId)) return;
+
+  const { data: existing } = await supabase
+    .from('classes')
+    .select('id, name')
+    .eq('organisation_id', orgId);
+
+  const existingNames = new Set((existing || []).map((c: any) => c.name));
+  const missing = Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`)
+    .filter(name => !existingNames.has(name))
+    .map(name => ({
+      organisation_id: orgId,
+      name,
+      grade_level: name,
+      capacity: 40,
+      status: 'active'
+    }));
+
+  if (missing.length > 0) {
+    await supabase.from('classes').insert(missing);
+  }
+
+  const { data: classes } = await supabase
+    .from('classes')
+    .select('id, organisation_id')
+    .eq('organisation_id', orgId);
+
+  const sectionRows = (classes || []).flatMap((cls: any) =>
+    ['A', 'B', 'C', 'D', 'E'].map(name => ({
+      organisation_id: orgId,
+      class_id: cls.id,
+      name,
+      capacity: 40,
+      is_active: true
+    }))
+  );
+
+  if (sectionRows.length > 0) {
+    await supabase
+      .from('sections')
+      .upsert(sectionRows, { onConflict: 'class_id,name' });
+  }
+}
+
 const router = Router();
 
 // Apply authentication + org access control + audit logging to all routes below
@@ -52,7 +119,6 @@ router.param('organisation_id', (req: any, res, next, value) => {
 });
 
 router.use(enforceOrgAccess());
-router.use(auditLog('management_action'));
 
 // Dashboard
 router.get('/dashboard/:organisation_id', asyncHandler(async (req, res) => {
@@ -81,7 +147,7 @@ router.get('/dashboard/:organisation_id', asyncHandler(async (req, res) => {
 
 // === STUDENT MANAGEMENT ===
 router.post('/students', asyncHandler(async (req, res) => {
-  let { organisation_id, full_name, roll_number, student_class, section, phone, email, password, parent_info, parent_email, parent_phone } = req.body;
+  let { organisation_id, full_name, roll_number, student_class, section, class_id, section_id, phone, email, password, parent_info, parent_email, parent_phone } = req.body;
   if (!organisation_id) organisation_id = req.user?.organisationId || '';
   if (!organisation_id) return res.status(400).json({ error: 'organisation_id required — try logging out and back in' });
   if (!isValidUUID(organisation_id)) return res.status(400).json({ error: 'Invalid organisation_id' });
@@ -89,6 +155,21 @@ router.post('/students', asyncHandler(async (req, res) => {
   if (!roll_number) return res.status(400).json({ error: 'roll_number required' });
 
   try {
+    // Resolve class_id and section_id before insert
+    let resolvedClassId: string | null = null;
+    let resolvedSectionId: string | null = section_id && isValidUUID(section_id) ? section_id : null;
+    let resolvedClassName: string | null = null;
+    const classValue = class_id || student_class;
+
+    if (classValue) {
+      const resolved = await resolveOrCreateClassSection(organisation_id, classValue, section || '');
+      resolvedClassId = resolved.classId;
+      resolvedSectionId = resolvedSectionId || resolved.sectionId;
+      resolvedClassName = resolved.className;
+    } else if (section && isValidUUID(section)) {
+      resolvedSectionId = section;
+    }
+
     let authUserId: string | null = null;
     if (email && password) {
       try {
@@ -98,16 +179,22 @@ router.post('/students', asyncHandler(async (req, res) => {
       }
     }
 
-    const { data, error } = await supabase.from('students').insert([{ 
+    const { data, error } = await insertStudentCompat({
       organisation_id,
       full_name,
       roll_number,
-      section,
+      class_id: resolvedClassId,
+      student_class: resolvedClassName || (student_class && !isValidUUID(student_class) ? student_class : null),
+      section_id: resolvedSectionId,
       phone,
       user_id: authUserId,
       email: email || null,
+      parent_name: parent_info?.type === 'new' ? parent_info.full_name || null : null,
+      parent_email: parent_info?.email || parent_email || null,
+      parent_phone: parent_info?.phone || parent_phone || null,
+      parent_relationship: parent_info?.relationship || 'guardian',
       status: 'active'
-    }]).select();
+    });
 
     if (error) {
       if (authUserId) {
@@ -119,13 +206,20 @@ router.post('/students', asyncHandler(async (req, res) => {
 
     const studentId = data?.[0]?.id;
 
+    // Add to class_student_map
+    if (studentId && resolvedClassId) {
+      await supabase.from('class_student_map').upsert({
+        class_id: resolvedClassId, student_id: studentId, organisation_id
+      }, { onConflict: 'class_id,student_id' });
+    }
+
     // Handle parent linking (new format: parent_info object, old format: parent_email text)
     if (studentId && parent_info) {
       if (parent_info.type === 'existing' && parent_info.parent_id && isValidUUID(parent_info.parent_id)) {
-        await supabase.from('parent_student_links').insert({
+        await supabase.from('parent_student_links').upsert({
           organisation_id, parent_id: parent_info.parent_id, student_id: studentId,
           relationship: parent_info.relationship || 'guardian'
-        }).select().single();
+        }, { onConflict: 'parent_id,student_id' }).select().single();
       } else if (parent_info.type === 'new' && parent_info.email) {
         const pw = parent_info.password || crypto.randomUUID().slice(0, 12) + '!';
         const { data: existing } = await supabase.from('users').select('id').eq('email', parent_info.email).maybeSingle();
@@ -139,16 +233,16 @@ router.post('/students', asyncHandler(async (req, res) => {
           organisation_id, user_id: parentUserId,
           full_name: parent_info.full_name || full_name,
           email: parent_info.email,
-          phone: parent_info.phone || null, status: 'active'
+          phone: parent_info.phone || null, status: 'active',
+          generated_password: pw
         }).select().single();
-        await supabase.from('parent_student_links').insert({
+        await supabase.from('parent_student_links').upsert({
           organisation_id, parent_id: parentUserId, student_id: studentId,
           relationship: parent_info.relationship || 'guardian'
-        }).select().single();
+        }, { onConflict: 'parent_id,student_id' }).select().single();
         getOrgName(organisation_id).then(n => logCredential(organisation_id, n, parent_info.full_name || full_name, parent_info.email, 'parent', 'Student Creation', pw));
       }
-    } else if (studentId && parent_email) {
-      // Backward compat: old format sends parent_email + parent_phone text fields
+    } else if (studentId && parent_email && !parent_info) {
       const pw = crypto.randomUUID().slice(0, 12) + '!';
       const { data: existing } = await supabase.from('users').select('id').eq('email', parent_email).maybeSingle();
       let parentUserId: string;
@@ -160,21 +254,14 @@ router.post('/students', asyncHandler(async (req, res) => {
       await supabase.from('parents').insert({
         organisation_id, user_id: parentUserId,
         full_name: `Parent of ${full_name}`, email: parent_email,
-        phone: parent_phone || null, status: 'active'
+        phone: parent_phone || null, status: 'active',
+        generated_password: pw
       }).select().single();
-      await supabase.from('parent_student_links').insert({
+      await supabase.from('parent_student_links').upsert({
         organisation_id, parent_id: parentUserId, student_id: studentId,
         relationship: 'guardian'
-      }).select().single();
+      }, { onConflict: 'parent_id,student_id' }).select().single();
       getOrgName(organisation_id).then(n => logCredential(organisation_id, n, `Parent of ${full_name}`, parent_email, 'parent', 'Student Creation', pw));
-    }
-
-    if (studentId && student_class) {
-      const { classId, sectionId } = await resolveOrCreateClassSection(organisation_id, student_class, section);
-      if (classId) {
-        await supabase.from('students').update({ class_id: classId, section_id: sectionId }).eq('id', studentId);
-        await supabase.from('class_student_map').insert({ class_id: classId, student_id: studentId });
-      }
     }
 
     if (email && password) {
@@ -192,22 +279,35 @@ router.post('/students', asyncHandler(async (req, res) => {
   }
 }));
 
-async function resolveOrCreateClassSection(orgId: string, className: string, sectionName: string) {
-  if (!className) return { classId: null, sectionId: null };
+async function resolveOrCreateClassSection(orgId: string, classNameOrId: string, sectionNameOrId: string) {
+  if (!classNameOrId) return { classId: null, sectionId: null, className: null };
 
-  let { data: cls } = await supabase
-    .from('classes')
-    .select('id')
-    .eq('name', className)
-    .eq('organisation_id', orgId)
-    .maybeSingle();
+  let cls: any = null;
 
-  if (!cls) {
+  if (isValidUUID(classNameOrId)) {
+    const { data } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('id', classNameOrId)
+      .eq('organisation_id', orgId)
+      .maybeSingle();
+    cls = data;
+  } else {
+    const { data } = await supabase
+      .from('classes')
+      .select('id, name')
+      .eq('name', classNameOrId)
+      .eq('organisation_id', orgId)
+      .maybeSingle();
+    cls = data;
+  }
+
+  if (!cls && !isValidUUID(classNameOrId)) {
     const { data: newCls, error: classErr } = await supabase
       .from('classes')
       .insert({
         organisation_id: orgId,
-        name: className,
+        name: classNameOrId,
         status: 'active'
       })
       .select()
@@ -221,13 +321,25 @@ async function resolveOrCreateClassSection(orgId: string, className: string, sec
   }
 
   const classId = cls?.id || null;
+  const className = cls?.name || (isValidUUID(classNameOrId) ? null : classNameOrId);
   let sectionId: string | null = null;
 
-  if (classId && sectionName) {
+  if (classId && sectionNameOrId) {
+    if (isValidUUID(sectionNameOrId)) {
+      const { data: sect } = await supabase
+        .from('sections')
+        .select('id')
+        .eq('id', sectionNameOrId)
+        .eq('class_id', classId)
+        .eq('organisation_id', orgId)
+        .maybeSingle();
+      return { classId, sectionId: sect?.id || null, className };
+    }
+
     let { data: sect } = await supabase
       .from('sections')
       .select('id')
-      .eq('name', sectionName)
+      .eq('name', sectionNameOrId)
       .eq('class_id', classId)
       .eq('organisation_id', orgId)
       .maybeSingle();
@@ -238,7 +350,7 @@ async function resolveOrCreateClassSection(orgId: string, className: string, sec
         .insert({
           organisation_id: orgId,
           class_id: classId,
-          name: sectionName
+          name: sectionNameOrId
         })
         .select()
         .single();
@@ -252,7 +364,7 @@ async function resolveOrCreateClassSection(orgId: string, className: string, sec
     sectionId = sect?.id || null;
   }
 
-  return { classId, sectionId };
+  return { classId, sectionId, className };
 }
 
 async function listStudents(req: any, res: any, orgId: string) {
@@ -307,8 +419,8 @@ async function listStudents(req: any, res: any, orgId: string) {
       const resolvedClass = resolvedClassId ? classMap[resolvedClassId] : null;
       const resolvedSection = s.section_id ? sectionMap[s.section_id] : null;
 
-      const studentClass = resolvedClass?.name || '';
-      const section = resolvedSection?.name || s.section || resolvedClass?.section || '';
+      const studentClass = resolvedClass?.name || (typeof s.student_class === 'string' && !isValidUUID(s.student_class) ? s.student_class : '');
+      const section = resolvedSection?.name || (typeof s.section === 'string' ? s.section : '');
 
       const studentLinks = parentLinksByStudentId[s.id] || [];
       const firstLink = studentLinks[0];
@@ -318,14 +430,28 @@ async function listStudents(req: any, res: any, orgId: string) {
       const parentName = parentProfile?.full_name || s.parent_name || '';
       const parentEmail = parentProfile?.email || s.parent_email || '';
       const parentPhone = parentProfile?.phone || s.parent_phone || '';
-      const parentRelationship = firstLink?.relationship || 'guardian';
+      const parentRelationship = firstLink?.relationship || s.parent_relationship || 'guardian';
       const parentLoginCreated = !!parentUser || !!parentProfile?.user_id;
 
       return {
         ...s,
+        class_id: resolvedClassId || s.class_id || '',
+        section_id: s.section_id || '',
         email: s.email || userMap[s.user_id]?.email || '',
         student_class: studentClass,
         section: section,
+        parents: studentLinks.map((l: any) => {
+          const profile = parentsMap[l.parent_id] || {};
+          const pUser = parentUsersMap[l.parent_id] || {};
+          return {
+            parent_id: l.parent_id,
+            parent_name: profile.full_name || '',
+            parent_email: profile.email || '',
+            parent_phone: profile.phone || '',
+            relationship: l.relationship || 'guardian',
+            parent_login_created: !!pUser || !!profile.user_id,
+          };
+        }),
         parent_name: parentName,
         parent_email: parentEmail,
         parent_phone: parentPhone,
@@ -347,11 +473,12 @@ router.get('/students/search/:org_id', asyncHandler(async (req, res) => {
   const q = (req.query.q as string || '').trim();
   if (!q || q.length < 2) return res.json([]);
   const { data } = await supabase.from('students')
-    .select('id, full_name, roll_number, section')
+    .select('id, full_name, roll_number, section_id, sections(name)')
     .eq('organisation_id', orgId)
     .or(`full_name.ilike.%${q}%,roll_number.ilike.%${q}%`)
     .limit(20);
-  res.json(data || []);
+  const mapped = (data || []).map((s: any) => ({ ...s, section: s.sections?.name || '' }));
+  res.json(mapped);
 }));
 
 // Parent search
@@ -360,11 +487,15 @@ router.get('/parents/search/:org_id', asyncHandler(async (req, res) => {
   const q = (req.query.q as string || '').trim();
   if (!q || q.length < 2) return res.json([]);
   const { data } = await supabase.from('parents')
-    .select('id, full_name, email, phone')
+    .select('id, user_id, full_name, email, phone')
     .eq('organisation_id', orgId)
     .or(`full_name.ilike.%${q}%,email.ilike.%${q}%`)
     .limit(20);
-  res.json(data || []);
+  res.json((data || []).map((parent: any) => ({
+    ...parent,
+    profile_id: parent.id,
+    id: parent.user_id || parent.id
+  })));
 }));
 
 // Support both /students (uses user org) and /students/:org_id (backward compat)
@@ -391,13 +522,15 @@ router.patch('/students/:student_id', asyncHandler(async (req, res) => {
       parent_email,
       parent_phone,
       parent_relationship,
+      student_class,
+      section,
       ...studentUpdates
     } = updates;
 
     // 1. Get current student record to resolve user_id and class_id
     const { data: studentRecord } = await supabase
       .from('students')
-      .select('user_id, class_id')
+      .select('user_id, class_id, section_id')
       .eq('id', student_id)
       .single();
 
@@ -418,57 +551,61 @@ router.patch('/students/:student_id', asyncHandler(async (req, res) => {
       }).catch(() => {});
     }
 
-    // 2. Resolve class name if class_id is not a UUID
-    if (studentUpdates.class_id !== undefined) {
-      const classValue = studentUpdates.class_id;
-      let resolvedClassId = classValue;
-      if (classValue && !isValidUUID(classValue)) {
+    // 2. Resolve class (class_id or student_class text)
+    if (studentUpdates.class_id !== undefined || student_class !== undefined) {
+      const classValue = studentUpdates.class_id !== undefined ? studentUpdates.class_id : student_class;
+      let resolvedClassId = null;
+      let resolvedClassName = null;
+
+      if (classValue && isValidUUID(classValue)) {
         const resolved = await resolveOrCreateClassSection(orgId, classValue, '');
         resolvedClassId = resolved.classId;
+        resolvedClassName = resolved.className;
+      } else if (classValue) {
+        const resolved = await resolveOrCreateClassSection(orgId, classValue, '');
+        resolvedClassId = resolved.classId;
+        resolvedClassName = resolved.className;
       }
-      studentUpdates.class_id = resolvedClassId || null;
+
+      studentUpdates.class_id = resolvedClassId;
+      studentUpdates.student_class = resolvedClassName || (classValue && !isValidUUID(classValue) ? classValue : null);
 
       await supabase.from('class_student_map').delete().eq('student_id', student_id);
       if (resolvedClassId) {
-        await supabase.from('class_student_map').insert({ student_id, class_id: resolvedClassId });
+        await supabase.from('class_student_map').insert({ student_id, class_id: resolvedClassId, organisation_id: orgId });
       }
     }
 
-    // Sync section_id and section name
-    if (studentUpdates.section_id !== undefined) {
-      const sectionValue = studentUpdates.section_id;
-      if (isValidUUID(sectionValue)) {
-        const { data: sect } = await supabase.from('sections').select('name').eq('id', sectionValue).maybeSingle();
-        if (sect) {
-          studentUpdates.section = sect.name;
-        }
-      } else {
-        studentUpdates.section = sectionValue || null;
+    // 3. Resolve section (section_id or section text)
+    if (studentUpdates.section_id !== undefined || section !== undefined) {
+      const sectionValue = studentUpdates.section_id !== undefined ? studentUpdates.section_id : section;
+      if (sectionValue && isValidUUID(sectionValue)) {
+        studentUpdates.section_id = sectionValue;
+      } else if (sectionValue) {
         const resolvedClassId = studentUpdates.class_id !== undefined ? studentUpdates.class_id : studentRecord?.class_id;
-        if (resolvedClassId && isValidUUID(resolvedClassId) && sectionValue) {
+        if (resolvedClassId && isValidUUID(resolvedClassId)) {
           const { data: sect } = await supabase
             .from('sections')
             .select('id')
             .eq('name', sectionValue)
             .eq('class_id', resolvedClassId)
             .maybeSingle();
-          if (sect) {
-            studentUpdates.section_id = sect.id;
-          } else {
-            studentUpdates.section_id = null;
-          }
+          studentUpdates.section_id = sect?.id || null;
         } else {
           studentUpdates.section_id = null;
         }
+      } else {
+        studentUpdates.section_id = null;
       }
     }
 
-    // 3. Keep legacy parent fields on student table in sync
+    // 4. Keep parent fields on student table in sync
     if (parent_name !== undefined) studentUpdates.parent_name = parent_name;
     if (parent_email !== undefined) studentUpdates.parent_email = parent_email;
     if (parent_phone !== undefined) studentUpdates.parent_phone = parent_phone;
+    if (parent_relationship !== undefined) studentUpdates.parent_relationship = parent_relationship || 'guardian';
 
-    // 4. Update student record
+    // 5. Update student record
     const { data: studentData, error: studentError } = await supabase
       .from('students')
       .update(studentUpdates)
@@ -479,7 +616,7 @@ router.patch('/students/:student_id', asyncHandler(async (req, res) => {
     
     if (studentError) throw studentError;
 
-    // 5. Update parent profile and parent-student link
+    // 6. Update parent profile and parent-student link
     const { data: linkRecord } = await supabase
       .from('parent_student_links')
       .select('*')
@@ -498,12 +635,12 @@ router.patch('/students/:student_id', asyncHandler(async (req, res) => {
         if (linkRecord) {
           if (linkRecord.parent_id !== existingParentUser.id) {
             await supabase.from('parent_student_links').delete().eq('id', linkRecord.id);
-            await supabase.from('parent_student_links').insert({
+            await supabase.from('parent_student_links').upsert({
               organisation_id: orgId,
               parent_id: existingParentUser.id,
               student_id: student_id,
               relationship: parent_relationship || 'guardian'
-            });
+            }, { onConflict: 'parent_id,student_id' });
           } else {
             if (parent_relationship !== undefined) {
               await supabase
@@ -513,12 +650,12 @@ router.patch('/students/:student_id', asyncHandler(async (req, res) => {
             }
           }
         } else {
-          await supabase.from('parent_student_links').insert({
+          await supabase.from('parent_student_links').upsert({
             organisation_id: orgId,
             parent_id: existingParentUser.id,
             student_id: student_id,
             relationship: parent_relationship || 'guardian'
-          });
+          }, { onConflict: 'parent_id,student_id' });
         }
 
         // Keep parent profile in sync
@@ -678,22 +815,28 @@ router.post('/students/bulk', asyncHandler(async (req, res) => {
       // 3. Student database profile insert
       let classId: string | null = null;
       let sectionId: string | null = null;
+      let className: string | null = null;
 
       if (s.student_class) {
         const resolved = await resolveOrCreateClassSection(organisation_id, s.student_class, s.section);
         classId = resolved.classId;
         sectionId = resolved.sectionId;
+        className = resolved.className;
       }
 
-      const { data: studentData, error: studentError } = await supabase.from('students').insert([{
+      const { data: studentData, error: studentError } = await insertStudentCompat({
         organisation_id,
         full_name: s.full_name,
         roll_number: s.roll_number,
         phone: s.phone || null,
         email: s.email || null,
         user_id: authUserId,
+        class_id: classId,
+        student_class: className || s.student_class || null,
+        section_id: sectionId,
+        parent_relationship: s.parent_relationship || 'guardian',
         status: 'active'
-      }]).select();
+      });
 
       if (studentError) {
         if (authUserId) await supabase.auth.admin.deleteUser(authUserId).catch(() => {});
@@ -705,14 +848,9 @@ router.post('/students/bulk', asyncHandler(async (req, res) => {
         throw new Error('Failed to retrieve created student ID');
       }
 
-      // 4. Class/section assignment — UPDATE after insert to avoid missing column issues
-      if (classId || sectionId) {
-        const updateData: Record<string, any> = {};
-        if (classId) updateData.class_id = classId;
-        if (sectionId) updateData.section_id = sectionId;
-        await supabase.from('students').update(updateData).eq('id', studentId);
-        const { error: mapErr } = await supabase.from('class_student_map').insert({ class_id: classId, student_id: studentId, organisation_id });
-        if (mapErr) console.error('class_student_map insert:', mapErr.message);
+      // 4. Class/section assignment
+      if (classId) {
+        await supabase.from('class_student_map').upsert({ class_id: classId, student_id: studentId, organisation_id }, { onConflict: 'class_id,student_id' });
       }
 
       // 5. Parent Account Creation and Linking
@@ -750,11 +888,12 @@ router.post('/students/bulk', asyncHandler(async (req, res) => {
         .eq('student_id', studentId)
         .maybeSingle();
       if (!existingLink) {
-        const { error: linkErr } = await supabase.from('parent_student_links').insert({
+        const { error: linkErr } = await supabase.from('parent_student_links').upsert({
+          organisation_id,
           parent_id: parentUserId,
           student_id: studentId,
           relationship: s.parent_relationship || 'guardian'
-        });
+        }, { onConflict: 'parent_id,student_id' });
         if (linkErr) console.error('parent_student_links insert failed:', linkErr.message);
       }
 
@@ -931,7 +1070,6 @@ router.post('/staff', asyncHandler(async (req, res) => {
     const profilePayload = {
       organisation_id,
       user_id: authUserId,
-      teacher_code: employeeId,
       staff_unique_id: employeeId,
       full_name,
       email: generatedEmail,
@@ -956,7 +1094,7 @@ router.post('/staff', asyncHandler(async (req, res) => {
     };
 
     const { data: teacher, error: teacherError } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .insert(profilePayload)
       .select()
       .single();
@@ -982,11 +1120,10 @@ router.post('/staff/validate-bulk', asyncHandler(async (req, res) => {
 
   // Pre-fetch all existing users and teachers for this organisation to do bulk validation quickly
   const { data: dbUsers } = await supabase.from('users').select('email').eq('organisation_id', organisation_id);
-  const { data: dbTeachers } = await supabase.from('teachers').select('teacher_code, staff_unique_id').eq('organisation_id', organisation_id);
+  const { data: dbTeachers } = await supabase.from('staff_records').select('staff_unique_id').eq('organisation_id', organisation_id);
 
   const dbEmails = new Set((dbUsers || []).map(u => u.email.toLowerCase()));
   const dbCodes = new Set([
-    ...(dbTeachers || []).map(t => (t.teacher_code || '').toLowerCase()),
     ...(dbTeachers || []).map(t => (t.staff_unique_id || '').toLowerCase())
   ]);
 
@@ -1219,7 +1356,7 @@ router.post('/staff/bulk', asyncHandler(async (req, res) => {
       }
 
       if (empId) {
-        const { data: codeDup } = await supabase.from('teachers').select('id').or(`teacher_code.eq.${employeeId},staff_unique_id.eq.${employeeId}`).maybeSingle();
+        const { data: codeDup } = await supabase.from('staff_records').select('id').eq('staff_unique_id', employeeId).maybeSingle();
         if (codeDup) {
           throw new Error(`Employee ID already in use: ${employeeId}`);
         }
@@ -1236,7 +1373,6 @@ router.post('/staff/bulk', asyncHandler(async (req, res) => {
       const profilePayload = {
         organisation_id,
         user_id: authUserId,
-        teacher_code: employeeId,
         staff_unique_id: employeeId,
         full_name: name,
         email: generatedEmail,
@@ -1261,7 +1397,7 @@ router.post('/staff/bulk', asyncHandler(async (req, res) => {
       };
 
       const { data: teacher, error: teacherError } = await supabase
-        .from('teachers')
+        .from('staff_records')
         .insert(profilePayload)
         .select()
         .single();
@@ -1286,10 +1422,10 @@ router.post('/staff/bulk', asyncHandler(async (req, res) => {
               if (subjectId) {
                 try {
                   await supabase.from('class_subject_teacher_map').insert({
-                    organisation_id,
                     teacher_id: teacher.id,
                     class_id: classId,
-                    subject_id: subjectId
+                    subject_id: subjectId,
+                    organisation_id
                   });
                 } catch (err) {}
               }
@@ -1362,13 +1498,16 @@ router.post('/staff/:teacher_id/assign-class', asyncHandler(async (req, res) => 
   for (const sid of subject_ids) { if (!isValidUUID(sid)) return res.status(400).json({ error: `Invalid subject_id: ${sid}` }); }
   if (section_ids) { for (const sid of section_ids) { if (!isValidUUID(sid)) return res.status(400).json({ error: `Invalid section_id: ${sid}` }); } }
   try {
-    const ids = section_ids && section_ids.length > 0 ? section_ids : [null];
-    const rows: { organisation_id: string; teacher_id: string; class_id: string; subject_id: string; section_id: string | null }[] = [];
+    const rows: { teacher_id: string; class_id: string; subject_id: string; organisation_id: string; section_id: string | null }[] = [];
     for (const class_id of class_ids) {
       for (const subject_id of subject_ids) {
-        for (const section_id of ids) {
-          rows.push({ organisation_id, teacher_id, class_id, subject_id, section_id });
-        }
+        rows.push({
+          teacher_id,
+          class_id,
+          subject_id,
+          organisation_id,
+          section_id: section_ids && section_ids.length > 0 ? section_ids[0] : null
+        });
       }
     }
     const { data, error } = await supabase.from('class_subject_teacher_map').insert(rows).select();
@@ -1404,9 +1543,9 @@ router.get('/staff/:staff_id/assignments', asyncHandler(async (req, res) => {
     // 3. Fetch teacher matrix maps
     const { data: teacherMatrix } = await supabase
       .from('class_subject_teacher_map')
-      .select('id, class_id, section_id, subject_id, is_class_teacher, classes(name, section), sections(name), subjects(name, code)')
+      .select('id, class_id, subject_id, is_class_teacher, classes(name, section), subjects(name, code)')
       .eq('teacher_id', staff_id)
-      .eq('organisation_id', organisation_id);
+      .eq('classes.organisation_id', organisation_id);
 
     // 4. Fetch class teacher assignments
     const { data: classTeachers } = await supabase
@@ -1558,13 +1697,13 @@ router.post('/staff/:staff_id/assignments', asyncHandler(async (req, res) => {
       result = data;
     }
     else if (type === 'teacher_matrix') {
-      const { class_id, section_id, subject_id } = payload;
+      const { class_id, subject_id, section_id } = payload;
       const { data, error } = await supabase.from('class_subject_teacher_map').upsert({
-        organisation_id, 
         teacher_id: staff_id, 
         class_id, 
-        section_id: section_id || null, 
-        subject_id: subject_id || null
+        subject_id: subject_id || null,
+        section_id: section_id || null,
+        organisation_id
       }, { onConflict: 'class_id,subject_id,teacher_id' }).select().single();
       if (error) throw error;
       result = data;
@@ -1583,24 +1722,21 @@ router.post('/staff/:staff_id/assignments', asyncHandler(async (req, res) => {
         .from('class_subject_teacher_map')
         .select('id')
         .eq('teacher_id', staff_id)
-        .eq('class_id', class_id)
-        .eq('section_id', section_id || null);
+        .eq('class_id', class_id);
 
       if (existingMaps && existingMaps.length > 0) {
         await supabase
           .from('class_subject_teacher_map')
           .update({ is_class_teacher: true })
           .eq('teacher_id', staff_id)
-          .eq('class_id', class_id)
-          .eq('section_id', section_id || null);
+          .eq('class_id', class_id);
       } else {
         await supabase.from('class_subject_teacher_map').insert({
-          organisation_id,
           teacher_id: staff_id,
           class_id,
-          section_id: section_id || null,
           subject_id: null,
-          is_class_teacher: true
+          is_class_teacher: true,
+          organisation_id
         });
       }
     }
@@ -1709,15 +1845,13 @@ router.delete('/staff/assignments/:type/:id', asyncHandler(async (req, res) => {
           .from('class_subject_teacher_map')
           .update({ is_class_teacher: false })
           .eq('teacher_id', ctRecord.staff_id)
-          .eq('class_id', ctRecord.class_id)
-          .eq('section_id', ctRecord.section_id);
+          .eq('class_id', ctRecord.class_id);
           
         await supabase
           .from('class_subject_teacher_map')
           .delete()
           .eq('teacher_id', ctRecord.staff_id)
           .eq('class_id', ctRecord.class_id)
-          .eq('section_id', ctRecord.section_id)
           .is('subject_id', null)
           .eq('is_class_teacher', false);
       }
@@ -1770,7 +1904,7 @@ router.post('/staff/:staff_id/tasks', asyncHandler(async (req, res) => {
   if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
   if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
 
-  const { title, description, priority, deadline, status } = req.body;
+  const { title, description, priority, deadline, status, progress, task_type, start_date, location } = req.body;
   if (!title) return res.status(400).json({ error: 'title is required' });
 
   try {
@@ -1778,13 +1912,16 @@ router.post('/staff/:staff_id/tasks', asyncHandler(async (req, res) => {
       .from('staff_tasks')
       .insert({
         organisation_id,
-        organization_id: organisation_id,
         staff_id,
         title,
         description: description || null,
         priority: priority || 'MEDIUM',
         deadline: deadline || null,
-        status: status || 'PENDING'
+        status: status || 'PENDING',
+        progress: typeof progress === 'number' ? Math.max(0, Math.min(100, progress)) : 0,
+        task_type: task_type || 'OTHER',
+        start_date: start_date || null,
+        location: location || null
       })
       .select()
       .single();
@@ -1800,7 +1937,7 @@ router.put('/staff/tasks/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid task id' });
 
-  const { title, description, priority, deadline, status } = req.body;
+  const { title, description, priority, deadline, status, progress, task_type, start_date, location } = req.body;
 
   try {
     const updateData: any = {};
@@ -1809,6 +1946,10 @@ router.put('/staff/tasks/:id', asyncHandler(async (req, res) => {
     if (priority !== undefined) updateData.priority = priority;
     if (deadline !== undefined) updateData.deadline = deadline;
     if (status !== undefined) updateData.status = status;
+    if (progress !== undefined) updateData.progress = Math.max(0, Math.min(100, progress));
+    if (task_type !== undefined) updateData.task_type = task_type;
+    if (start_date !== undefined) updateData.start_date = start_date;
+    if (location !== undefined) updateData.location = location;
 
     const { data, error } = await supabase
       .from('staff_tasks')
@@ -1835,6 +1976,59 @@ router.delete('/staff/tasks/:id', asyncHandler(async (req, res) => {
       .eq('id', id);
     if (error) throw error;
     res.json({ success: true, message: 'Task deleted successfully' });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET all staff tasks for an organisation (Assignments module) with staff enrichment
+router.get('/staff-tasks', asyncHandler(async (req, res) => {
+  const organisation_id = req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data: tasks, error } = await supabase
+      .from('staff_tasks')
+      .select('*')
+      .eq('organisation_id', organisation_id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = [...new Set((tasks || []).map((t: any) => t.staff_id).filter(Boolean))];
+    const nameMap = new Map<string, any>();
+    if (staffIds.length) {
+      const { data: users } = await supabase
+        .from('users')
+        .select('id, full_name, email, role, status')
+        .in('id', staffIds);
+      (users || []).forEach((u: any) => nameMap.set(u.id, { full_name: u.full_name, email: u.email, role: u.role, status: u.status }));
+
+      const { data: staffRecs } = await supabase
+        .from('staff_records')
+        .select('user_id, department, designation, staff_unique_id, employment_type')
+        .in('user_id', staffIds);
+      (staffRecs || []).forEach((s: any) => {
+        const cur = nameMap.get(s.user_id) || {};
+        nameMap.set(s.user_id, { ...cur, department: s.department, designation: s.designation, staff_unique_id: s.staff_unique_id, employment_type: s.employment_type });
+      });
+    }
+
+    const enriched = (tasks || []).map((t: any) => {
+      const user = nameMap.get(t.staff_id) || {};
+      return {
+        ...t,
+        staff_name: user.full_name || null,
+        staff_email: user.email || null,
+        staff_role: user.role || null,
+        staff_status: user.status || null,
+        department: user.department || null,
+        designation: user.designation || null,
+        staff_unique_id: user.staff_unique_id || null,
+        employment_type: user.employment_type || null,
+      };
+    });
+
+    res.json({ success: true, data: enriched });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -1995,7 +2189,9 @@ router.put('/staff/resources/:id', asyncHandler(async (req, res) => {
   const updateData: any = {};
   if (status !== undefined) {
     updateData.status = status;
-    if (status === 'AVAILABLE' || status === 'RETURNED') {
+    if (status === 'RETURNED') {
+      updateData.returned_at = new Date().toISOString();
+    } else if (status === 'AVAILABLE') {
       updateData.returned_at = new Date().toISOString();
       updateData.staff_id = null;
     }
@@ -2003,11 +2199,15 @@ router.put('/staff/resources/:id', asyncHandler(async (req, res) => {
   if (notes !== undefined) updateData.notes = notes;
   if (staff_id !== undefined) updateData.staff_id = staff_id;
 
+  const organisation_id = req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
   try {
     const { data, error } = await supabase
       .from('staff_resources')
       .update(updateData)
       .eq('id', id)
+      .eq('organisation_id', organisation_id)
       .select()
       .single();
     if (error) throw error;
@@ -2045,7 +2245,7 @@ router.post('/staff/:staff_id/performance', asyncHandler(async (req, res) => {
   if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
   if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
 
-  const { score, kpi_metrics, reviews, manager_feedback } = req.body;
+  const { score, kpi_metrics, manager_feedback, review_period } = req.body;
 
   try {
     const { data, error } = await supabase
@@ -2053,10 +2253,10 @@ router.post('/staff/:staff_id/performance', asyncHandler(async (req, res) => {
       .insert({
         organisation_id,
         staff_id,
-        score: score || 100,
+        score: score ?? 100,
         kpi_metrics: kpi_metrics || {},
-        reviews: reviews || [],
-        manager_feedback: manager_feedback || null
+        manager_feedback: manager_feedback || null,
+        review_period: review_period || 'MONTHLY'
       })
       .select()
       .single();
@@ -2095,7 +2295,7 @@ router.post('/staff/:staff_id/leaves', asyncHandler(async (req, res) => {
   if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
   if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
 
-  const { leave_type, start_date, end_date, reason } = req.body;
+  const { leave_type, start_date, end_date, reason, leave_category } = req.body;
   if (!leave_type || !start_date || !end_date) {
     return res.status(400).json({ error: 'Missing required leave fields' });
   }
@@ -2110,6 +2310,7 @@ router.post('/staff/:staff_id/leaves', asyncHandler(async (req, res) => {
         start_date,
         end_date,
         reason,
+        leave_category: leave_category || 'PAID',
         status: 'PENDING'
       })
       .select()
@@ -2137,13 +2338,141 @@ router.put('/staff/leaves/:id', asyncHandler(async (req, res) => {
       .update({
         status,
         reviewed_by: req.user?.id || null,
-        reviewed_at: new Date().toISOString()
+        approved_at: status === 'APPROVED' ? new Date().toISOString() : null
       })
       .eq('id', id)
       .select()
       .single();
     if (error) throw error;
     res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET all leave requests for the organisation (management view)
+router.get('/staff-leaves', asyncHandler(async (req, res) => {
+  const organisation_id = req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data: leaves, error } = await supabase
+      .from('staff_leave_requests')
+      .select('*, staff:users!staff_leave_requests_staff_id_fkey(id, full_name, email)')
+      .eq('organisation_id', organisation_id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = Array.from(new Set((leaves || []).map((l: any) => l.staff_id).filter(Boolean))) as string[];
+    let records: any[] = [];
+    if (staffIds.length) {
+      const { data: recs } = await supabase
+        .from('staff_records')
+        .select('user_id, staff_unique_id, department, designation')
+        .eq('organisation_id', organisation_id)
+        .in('user_id', staffIds);
+      records = recs || [];
+    }
+    const recByUser = new Map(records.map((r: any) => [r.user_id, r]));
+
+    const enriched = (leaves || []).map((l: any) => {
+      const r = recByUser.get(l.staff_id) || {};
+      return {
+        ...l,
+        staff_name: l.staff?.full_name || null,
+        staff_email: l.staff?.email || null,
+        employee_id: r.staff_unique_id || null,
+        department: r.department || null,
+        designation: r.designation || null
+      };
+    });
+    res.json({ success: true, data: enriched });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET org-wide staff performance (management view) enriched with staff info
+router.get('/staff-performance', asyncHandler(async (req, res) => {
+  const organisation_id = req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data: perfs, error } = await supabase
+      .from('staff_performance')
+      .select('*, staff:users!staff_performance_staff_id_fkey(id, full_name, email)')
+      .eq('organisation_id', organisation_id)
+      .order('review_date', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = Array.from(new Set((perfs || []).map((p: any) => p.staff_id).filter(Boolean))) as string[];
+    let records: any[] = [];
+    if (staffIds.length) {
+      const { data: recs } = await supabase
+        .from('staff_records')
+        .select('user_id, staff_unique_id, department, designation, role, gender')
+        .eq('organisation_id', organisation_id)
+        .in('user_id', staffIds);
+      records = recs || [];
+    }
+    const recByUser = new Map(records.map((r: any) => [r.user_id, r]));
+
+    const enriched = (perfs || []).map((p: any) => {
+      const r = recByUser.get(p.staff_id) || {};
+      return {
+        ...p,
+        staff_name: p.staff?.full_name || null,
+        staff_email: p.staff?.email || null,
+        employee_id: r.staff_unique_id || null,
+        department: r.department || null,
+        designation: r.designation || null,
+        role: r.role || null,
+        gender: r.gender || null
+      };
+    });
+    res.json({ success: true, data: enriched });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET org-wide staff documents (management view) enriched with staff info
+router.get('/documents', asyncHandler(async (req, res) => {
+  const organisation_id = req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data: docs, error } = await supabase
+      .from('staff_documents')
+      .select('*, staff:users!staff_documents_staff_id_fkey(id, full_name, email)')
+      .eq('organisation_id', organisation_id)
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = Array.from(new Set((docs || []).map((d: any) => d.staff_id).filter(Boolean))) as string[];
+    let records: any[] = [];
+    if (staffIds.length) {
+      const { data: recs } = await supabase
+        .from('staff_records')
+        .select('user_id, staff_unique_id, department, designation')
+        .eq('organisation_id', organisation_id)
+        .in('user_id', staffIds);
+      records = recs || [];
+    }
+    const recByUser = new Map(records.map((r: any) => [r.user_id, r]));
+
+    const enriched = (docs || []).map((d: any) => {
+      const r = recByUser.get(d.staff_id) || {};
+      return {
+        ...d,
+        staff_name: d.staff?.full_name || null,
+        staff_email: d.staff?.email || null,
+        employee_id: r.staff_unique_id || null,
+        department: r.department || null,
+        designation: r.designation || null
+      };
+    });
+    res.json({ success: true, data: enriched });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2224,6 +2553,301 @@ router.put('/staff/documents/:id/status', asyncHandler(async (req, res) => {
       .single();
     if (error) throw error;
     res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET salary structure + payslip history for a staff member
+router.get('/staff/:staff_id/salary', asyncHandler(async (req, res) => {
+  const staff_id = req.params.staff_id;
+  const organisation_id = req.user?.organisationId || req.body?.organisation_id || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+  if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
+
+  try {
+    const { data: payroll, error: payrollError } = await supabase
+      .from('staff_payroll')
+      .select('*')
+      .eq('staff_id', staff_id)
+      .eq('organisation_id', organisation_id)
+      .maybeSingle();
+    if (payrollError) throw payrollError;
+
+    const { data: payslips, error: payslipsError } = await supabase
+      .from('staff_payslips')
+      .select('*')
+      .eq('staff_id', staff_id)
+      .eq('organisation_id', organisation_id)
+      .order('year', { ascending: false })
+      .order('month', { ascending: false });
+    if (payslipsError) throw payslipsError;
+
+    res.json({ success: true, data: { payroll: payroll || null, payslips: payslips || [] } });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// PUT upsert salary structure for a staff member
+router.put('/staff/:staff_id/salary', asyncHandler(async (req, res) => {
+  const staff_id = req.params.staff_id;
+  const organisation_id = req.body.organisation_id || req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+  if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
+
+  const { base_salary, allowances, deductions, pay_frequency } = req.body;
+  const components = Array.isArray(req.body.components)
+    ? req.body.components
+        .filter((c: any) => c && (c.label || Number(c.amount) > 0))
+        .map((c: any) => ({
+          label: String(c.label || 'Component').trim() || 'Component',
+          amount: parseFloat(c.amount) || 0
+        }))
+    : [];
+  const componentsSum = components.reduce((s: number, c: { amount: number }) => s + c.amount, 0);
+  const net_salary = Math.max(
+    0,
+    parseFloat(base_salary || 0) + parseFloat(allowances || 0) + componentsSum - parseFloat(deductions || 0)
+  );
+
+  try {
+    const { data, error } = await supabase
+      .from('staff_payroll')
+      .upsert(
+        {
+          organisation_id,
+          staff_id,
+          base_salary: parseFloat(base_salary || 0),
+          allowances: parseFloat(allowances || 0),
+          deductions: parseFloat(deductions || 0),
+          net_salary,
+          pay_frequency: pay_frequency || 'MONTHLY',
+          components,
+          updated_at: new Date().toISOString()
+        },
+        { onConflict: 'organisation_id,staff_id' }
+      )
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// POST create a payslip for a staff member
+router.post('/staff/:staff_id/salary/payslip', asyncHandler(async (req, res) => {
+  const staff_id = req.params.staff_id;
+  const organisation_id = req.body.organisation_id || req.user?.organisationId || '';
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+  if (!isValidUUID(staff_id)) return res.status(400).json({ error: 'Invalid staff_id' });
+
+  const { month, year, gross_pay, deductions, status } = req.body;
+
+  // Only the current month may be processed, and only once.
+  const now = new Date();
+  const currentMonth = now.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+  const currentYear = now.getFullYear();
+  const payslipMonth = String(month || '').toUpperCase().slice(0, 3);
+  const payslipYear = parseInt(year, 10) || currentYear;
+
+  if (!month || !year) return res.status(400).json({ error: 'month and year required' });
+  if (payslipMonth !== currentMonth || payslipYear !== currentYear) {
+    return res.status(400).json({ error: `Payslips can only be generated for the current month (${currentMonth} ${currentYear})` });
+  }
+
+  try {
+    const { data: existing, error: existError } = await supabase
+      .from('staff_payslips')
+      .select('id')
+      .eq('staff_id', staff_id)
+      .eq('organisation_id', organisation_id)
+      .eq('month', payslipMonth)
+      .eq('year', payslipYear)
+      .maybeSingle();
+    if (existError) throw existError;
+    if (existing) {
+      return res.status(409).json({ error: 'A payslip has already been generated for the current month' });
+    }
+
+    const net_pay = Math.max(0, parseFloat(gross_pay || 0) - parseFloat(deductions || 0));
+    const payment_method = String(req.body.payment_method || 'BANK').toUpperCase();
+    const { data, error } = await supabase
+      .from('staff_payslips')
+      .insert({
+        organisation_id,
+        staff_id,
+        month: payslipMonth,
+        year: payslipYear,
+        gross_pay: parseFloat(gross_pay || 0),
+        deductions: parseFloat(deductions || 0),
+        net_pay,
+        status: status || 'PENDING',
+        payment_method: ['CASH', 'BANK'].includes(payment_method) ? payment_method : 'BANK'
+      })
+      .select()
+      .single();
+    if (error) throw error;
+    res.status(201).json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// PUT update payslip status
+router.put('/staff/payslips/:id/status', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid payslip id' });
+
+  const { status } = req.body;
+  if (!['PENDING', 'PAID', 'CANCELLED'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid status value' });
+  }
+
+  try {
+    const { data: existing, error: existError } = await supabase
+      .from('staff_payslips')
+      .select('id, status')
+      .eq('id', id)
+      .maybeSingle();
+    if (existError) throw existError;
+    if (!existing) return res.status(404).json({ error: 'Payslip not found' });
+
+    if (existing.status === 'PAID' && status !== 'PAID') {
+      return res.status(409).json({ error: 'A paid payslip cannot be cancelled or reverted' });
+    }
+
+    const patch: any = { status };
+    if (status === 'PAID') patch.paid_at = new Date().toISOString();
+
+    const { data, error } = await supabase
+      .from('staff_payslips')
+      .update(patch)
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json({ success: true, data });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET all payslips for an organisation (for salary register marking)
+router.get('/staff/payslips/org/:organisation_id', asyncHandler(async (req, res) => {
+  const organisation_id = req.params.organisation_id;
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data, error } = await supabase
+      .from('staff_payslips')
+      .select('id, staff_id, month, year, gross_pay, deductions, net_pay, status, paid_at, payment_method')
+      .eq('organisation_id', organisation_id)
+      .order('year', { ascending: false })
+      .order('month', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = Array.from(new Set((data || []).map((p: any) => p.staff_id).filter(Boolean))) as string[];
+    let staffMeta: Record<string, any> = {};
+    if (staffIds.length) {
+      const { data: users, error: usersErr } = await supabase
+        .from('users')
+        .select('id, full_name, email, role')
+        .in('id', staffIds);
+      if (usersErr) throw usersErr;
+
+      const { data: records, error: recErr } = await supabase
+        .from('staff_records')
+        .select('user_id, staff_unique_id, department, designation')
+        .in('user_id', staffIds);
+      if (recErr) throw recErr;
+
+      const recByUser = new Map((records || []).map((r: any) => [r.user_id, r]));
+      staffMeta = (users || []).reduce((acc: any, u: any) => {
+        const r = recByUser.get(u.id) || {};
+        acc[u.id] = {
+          employee_id: r.staff_unique_id || u.email?.split('@')[0] || '',
+          name: u.full_name || '',
+          email: u.email || '',
+          role: r.designation || u.role || 'Staff',
+          department: r.department || 'General',
+        };
+        return acc;
+      }, {});
+    }
+
+    const rows = (data || []).map((p: any) => ({ ...p, staff: staffMeta[p.staff_id] || null }));
+    res.json({ success: true, data: rows });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// GET all saved salary structures with staff info for an organisation
+router.get('/staff/salaries/org/:organisation_id', asyncHandler(async (req, res) => {
+  const organisation_id = req.params.organisation_id;
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+
+  try {
+    const { data, error } = await supabase
+      .from('staff_payroll')
+      .select('*')
+      .eq('organisation_id', organisation_id)
+      .order('updated_at', { ascending: false });
+    if (error) throw error;
+
+    const staffIds = Array.from(new Set((data || []).map((p: any) => p.staff_id).filter(Boolean))) as string[];
+    let staffMeta: Record<string, any> = {};
+    if (staffIds.length) {
+      const { data: users, error: usersErr } = await supabase
+        .from('users')
+        .select('id, full_name, email, role')
+        .in('id', staffIds);
+      if (usersErr) throw usersErr;
+
+      const { data: records, error: recErr } = await supabase
+        .from('staff_records')
+        .select('user_id, staff_unique_id, department, designation')
+        .in('user_id', staffIds);
+      if (recErr) throw recErr;
+
+      const recByUser = new Map((records || []).map((r: any) => [r.user_id, r]));
+      staffMeta = (users || []).reduce((acc: any, u: any) => {
+        const r = recByUser.get(u.id) || {};
+        acc[u.id] = {
+          employee_id: r.staff_unique_id || u.email?.split('@')[0] || '',
+          name: u.full_name || '',
+          email: u.email || '',
+          role: r.designation || u.role || 'Staff',
+          department: r.department || 'General',
+        };
+        return acc;
+      }, {});
+    }
+
+    const rows = (data || []).map((p: any) => {
+      const meta = staffMeta[p.staff_id] || {};
+      const comps = Array.isArray(p.components) ? p.components : [];
+      return {
+        id: p.id,
+        staff_id: p.staff_id,
+        employee_id: meta.employee_id || '',
+        name: meta.name || '',
+        email: meta.email || '',
+        role: meta.role || 'Staff',
+        department: meta.department || 'General',
+        base_salary: Number(p.base_salary) || 0,
+        allowances: Number(p.allowances) || 0,
+        deductions: Number(p.deductions) || 0,
+        net_salary: Number(p.net_salary) || 0,
+        pay_frequency: p.pay_frequency || 'MONTHLY',
+        components: comps,
+        updated_at: p.updated_at || '',
+      };
+    });
+    res.json({ success: true, data: rows });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2352,8 +2976,8 @@ async function listStaff(req: any, res: any, orgId: string) {
   if (userError) return res.status(500).json({ error: userError.message });
 
   let teacherQuery = supabase
-    .from('teachers')
-    .select('id, user_id, teacher_code, staff_unique_id, subject, phone, status, qualification, join_date, department, designation, experience_years, gender, date_of_birth, address, city, state, country, postal_code, salary, employment_type, reporting_manager')
+    .from('staff_records')
+    .select('id, user_id, staff_unique_id, subject, phone, status, qualification, join_date, department, designation, experience_years, gender, date_of_birth, address, city, state, country, postal_code, salary, employment_type, reporting_manager')
     .eq('organisation_id', orgId);
 
   if (department) {
@@ -2399,8 +3023,7 @@ async function listStaff(req: any, res: any, orgId: string) {
     return {
       ...user,
       teacher_id: t?.id || null,
-      teacher_code: t?.teacher_code || '',
-      staff_unique_id: t?.staff_unique_id || t?.teacher_code || '',
+      staff_unique_id: t?.staff_unique_id || '',
       phone: t?.phone || '',
       subject: t?.subject || '',
       qualification: t?.qualification || '',
@@ -2483,7 +3106,6 @@ router.put('/staff/:staff_id', asyncHandler(async (req, res) => {
     if (phone !== undefined) teacherPayload.phone = phone || null;
     if (status !== undefined) teacherPayload.status = status;
     if (employee_id !== undefined) {
-      teacherPayload.teacher_code = employee_id || `STAFF-${Date.now()}`;
       teacherPayload.staff_unique_id = employee_id || `STAFF-${Date.now()}`;
     }
     if (department !== undefined) teacherPayload.department = department || null;
@@ -2511,7 +3133,7 @@ router.put('/staff/:staff_id', asyncHandler(async (req, res) => {
 
     if (Object.keys(teacherPayload).length > 0) {
       const { error: teacherError } = await supabase
-        .from('teachers')
+        .from('staff_records')
         .update(teacherPayload)
         .eq('user_id', staff_id);
       if (teacherError) throw teacherError;
@@ -2541,7 +3163,7 @@ router.put('/staff/:staff_id/status', asyncHandler(async (req, res) => {
     if (userError) throw userError;
 
     const { error: teacherError } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .update({ status })
       .eq('user_id', staff_id);
     if (teacherError) throw teacherError;
@@ -2558,7 +3180,7 @@ router.delete('/staff/:staff_id', asyncHandler(async (req, res) => {
 
   try {
     const { data: teacherRow } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('id, user_id')
       .eq('user_id', staff_id)
       .maybeSingle();
@@ -2570,7 +3192,7 @@ router.delete('/staff/:staff_id', asyncHandler(async (req, res) => {
         .eq('teacher_id', teacherRow.id);
 
       await supabase
-        .from('teachers')
+        .from('staff_records')
         .delete()
         .eq('id', teacherRow.id);
     }
@@ -2601,6 +3223,16 @@ router.post('/classes', asyncHandler(async (req, res) => {
       .single();
     
     if (error) throw error;
+    if (section && data?.id) {
+      await supabase
+        .from('sections')
+        .upsert({
+          organisation_id,
+          class_id: data.id,
+          name: section,
+          capacity: capacity || 40
+        }, { onConflict: 'class_id,name' });
+    }
     res.status(201).json(data);
 
     trackChange({ organisationId: organisation_id, tableName: 'classes', operation: 'INSERT', recordId: data?.id });
@@ -2616,13 +3248,22 @@ router.get('/classes/:organisation_id', asyncHandler(async (req, res) => {
   const { organisation_id } = req.params;
   
   try {
+    await ensureDefaultClasses(organisation_id);
+
     const { data, error } = await supabase
       .from('classes')
-      .select('*')
-      .eq('organisation_id', organisation_id);
+      .select('*, sections(id, name, capacity, room_number, is_active)')
+      .eq('organisation_id', organisation_id)
+      .order('name');
     
     if (error) throw error;
-    res.json(data || []);
+    const sorted = (data || []).sort((a: any, b: any) => {
+      const gradeA = Number(String(a.name || '').match(/\d+/)?.[0] || Number.MAX_SAFE_INTEGER);
+      const gradeB = Number(String(b.name || '').match(/\d+/)?.[0] || Number.MAX_SAFE_INTEGER);
+      if (gradeA !== gradeB) return gradeA - gradeB;
+      return String(a.name || '').localeCompare(String(b.name || ''));
+    });
+    res.json(sorted);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2631,16 +3272,33 @@ router.get('/classes/:organisation_id', asyncHandler(async (req, res) => {
 // Assign student to class
 router.post('/classes/:class_id/students', asyncHandler(async (req, res) => {
   const { class_id } = req.params;
-  const { student_id } = req.body;
+  const studentIds = Array.isArray(req.body.student_ids)
+    ? req.body.student_ids
+    : (req.body.student_id ? [req.body.student_id] : []);
+  const orgId = (req as any).user?.organisationId || req.body.organisation_id;
+
+  if (studentIds.length === 0) {
+    return res.status(400).json({ error: 'student_id or student_ids required' });
+  }
   
   try {
+    const rows = studentIds.map((student_id: string) => ({
+      class_id,
+      student_id,
+      organisation_id: orgId
+    }));
     const { data, error } = await supabase
       .from('class_student_map')
-      .insert({ class_id, student_id })
+      .upsert(rows, { onConflict: 'class_id,student_id' })
       .select();
     
     if (error) throw error;
-    res.status(201).json(data?.[0]);
+    await supabase
+      .from('students')
+      .update({ class_id })
+      .in('id', studentIds)
+      .eq('organisation_id', orgId);
+    res.status(201).json(Array.isArray(req.body.student_ids) ? data || [] : data?.[0]);
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -2691,10 +3349,10 @@ router.get('/timetable/staff-overview/:organisation_id', asyncHandler(async (req
   try {
     const [entriesRes, teachersRes] = await Promise.all([
       supabase.from('timetable_entries')
-        .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+        .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
         .eq('organisation_id', organisation_id)
         .order('day_of_week').order('start_time'),
-      supabase.from('teachers').select('id, full_name, subject, email, phone').eq('organisation_id', organisation_id).eq('status', 'active')
+      supabase.from('staff_records').select('id, full_name, subject, email, phone').eq('organisation_id', organisation_id).eq('status', 'active')
     ]);
     if (entriesRes.error) throw entriesRes.error;
     if (teachersRes.error) throw teachersRes.error;
@@ -2705,7 +3363,7 @@ router.get('/timetable/staff-overview/:organisation_id', asyncHandler(async (req
 router.get('/timetable/teachers-list/:organisation_id', asyncHandler(async (req, res) => {
   const { organisation_id } = req.params;
   try {
-    const { data, error } = await supabase.from('teachers').select('id, full_name, subject, email').eq('organisation_id', organisation_id).eq('status', 'active');
+    const { data, error } = await supabase.from('staff_records').select('id, full_name, subject, email').eq('organisation_id', organisation_id).eq('status', 'active');
     if (error) throw error;
     res.json(data || []);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -2715,6 +3373,18 @@ router.get('/timetable/classes-list/:organisation_id', asyncHandler(async (req, 
   const { organisation_id } = req.params;
   try {
     const { data, error } = await supabase.from('classes').select('id, name, section, grade_level').eq('organisation_id', organisation_id).eq('status', 'active');
+    if (error) throw error;
+    res.json(data || []);
+  } catch (error: any) { res.status(500).json({ error: error.message }); }
+}));
+
+router.get('/timetable/sections-list/:organisation_id', asyncHandler(async (req, res) => {
+  const { organisation_id } = req.params;
+  const { class_id } = req.query;
+  try {
+    let query = supabase.from('sections').select('id, name, class_id, capacity, room_number').eq('organisation_id', organisation_id).eq('is_active', true).order('name');
+    if (class_id) query = query.eq('class_id', class_id);
+    const { data, error } = await query;
     if (error) throw error;
     res.json(data || []);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -2730,32 +3400,53 @@ router.get('/timetable/subjects-list/:organisation_id', asyncHandler(async (req,
 }));
 
 router.get('/timetable', asyncHandler(async (req, res) => {
-  const { organisation_id, class_id, teacher_id } = req.query;
+  const { organisation_id, class_id, section_id, teacher_id } = req.query;
   try {
     let query = supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*), section:sections(*)')
       .order('day_of_week')
       .order('start_time');
     if (organisation_id) query = query.eq('organisation_id', organisation_id);
     if (class_id) query = query.eq('class_id', class_id);
+    if (section_id) query = query.eq('section_id', section_id);
     if (teacher_id) query = query.eq('teacher_id', teacher_id);
     const { data, error } = await query;
-    if (error) throw error;
+    if (error) {
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('timetable_entries')
+        .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
+        .order('day_of_week')
+        .order('start_time');
+      if (fallbackError) throw fallbackError;
+      return res.json(fallback || []);
+    }
     res.json(data || []);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 }));
 
 router.get('/timetable/class/:class_id', asyncHandler(async (req, res) => {
   const { class_id } = req.params;
+  const { section_id } = req.query;
   try {
-    const { data, error } = await supabase
+    let query = supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*), section:sections(*)')
       .eq('class_id', class_id)
       .order('day_of_week')
       .order('start_time');
-    if (error) throw error;
+    if (section_id) query = query.eq('section_id', section_id);
+    const { data, error } = await query;
+    if (error) {
+      const { data: fallback, error: fallbackError } = await supabase
+        .from('timetable_entries')
+        .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
+        .eq('class_id', class_id)
+        .order('day_of_week')
+        .order('start_time');
+      if (fallbackError) throw fallbackError;
+      return res.json(fallback || []);
+    }
     res.json(data || []);
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 }));
@@ -2765,7 +3456,7 @@ router.get('/timetable/teacher/:teacher_id', asyncHandler(async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
       .eq('teacher_id', teacher_id)
       .order('day_of_week')
       .order('start_time');
@@ -2775,11 +3466,11 @@ router.get('/timetable/teacher/:teacher_id', asyncHandler(async (req, res) => {
 }));
 
 router.post('/timetable', asyncHandler(async (req, res) => {
-  const { organisation_id, class_id, teacher_id, subject_id, day_of_week, start_time, end_time, room } = req.body;
+  const { organisation_id, class_id, section_id, teacher_id, subject_id, day_of_week, start_time, end_time, room, entry_type, title } = req.body;
   try {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .insert({ organisation_id, class_id, teacher_id, subject_id, day_of_week, start_time, end_time, room })
+      .insert({ organisation_id, class_id, section_id, teacher_id, subject_id, day_of_week, start_time, end_time, room, entry_type: entry_type || 'regular', title })
       .select()
       .single();
     if (error) throw error;
@@ -2798,7 +3489,7 @@ router.post('/timetable', asyncHandler(async (req, res) => {
 
 router.put('/timetable/:id', asyncHandler(async (req, res) => {
   const { id } = req.params;
-  const { class_id, teacher_id, subject_id, day_of_week, start_time, end_time, room } = req.body;
+  const { class_id, section_id, teacher_id, subject_id, day_of_week, start_time, end_time, room, entry_type, title } = req.body;
   const orgId = (req as any).user?.organisationId;
   try {
     const { data: existing } = await supabase
@@ -2811,7 +3502,7 @@ router.put('/timetable/:id', asyncHandler(async (req, res) => {
     }
     const { data, error } = await supabase
       .from('timetable_entries')
-      .update({ class_id, teacher_id, subject_id, day_of_week, start_time, end_time, room })
+      .update({ class_id, section_id, teacher_id, subject_id, day_of_week, start_time, end_time, room, entry_type: entry_type || 'regular', title })
       .eq('id', id)
       .select()
       .single();
@@ -2864,7 +3555,7 @@ router.get('/timetable/check-conflicts', asyncHandler(async (req, res) => {
   try {
     let query = supabase
       .from('timetable_entries')
-      .select('id, class_id, start_time, end_time, teacher:teachers(full_name), class:classes(name, section)')
+      .select('id, class_id, start_time, end_time, teacher:staff_records(full_name), class:classes(name, section)')
       .eq('teacher_id', teacher_id)
       .eq('day_of_week', parseInt(day_of_week as string))
       .or(`start_time.lt.${end_time},end_time.gt.${start_time}`);
@@ -2937,6 +3628,185 @@ router.post('/fees/assign', asyncHandler(async (req, res) => {
 }));
 
 // === ANNOUNCEMENTS ===
+// === AI ANNOUNCEMENT DRAFT ===
+router.post('/announcements/draft', asyncHandler(async (req, res) => {
+  const { topic = '', audience = 'All Staff', tone = 'professional' } = req.body;
+  const clean = (typeof topic === 'string' ? topic : '').trim() || 'Staff update';
+  const aud = (typeof audience === 'string' && audience.trim() ? audience.trim() : 'All Staff');
+  const lower = clean.toLowerCase();
+
+  const festivals: { re: RegExp; name: string }[] = [
+    { re: /diwali|deepawali|deepavali/, name: 'Diwali' },
+    { re: /holi/, name: 'Holi' },
+    { re: /christmas|xmas/, name: 'Christmas' },
+    { re: /new year/, name: 'New Year' },
+    { re: /eid/, name: 'Eid' },
+    { re: /ramadan|ramzan/, name: 'Ramadan' },
+    { re: /pongal/, name: 'Pongal' },
+    { re: /onam/, name: 'Onam' },
+    { re: /dussehra|dasara|navratri|durga/, name: 'Dussehra' },
+    { re: /ganesh/, name: 'Ganesh Chaturthi' },
+    { re: /janmashtami|krishna/, name: 'Janmashtami' },
+    { re: /gurupurab|guru purab/, name: 'Guru Nanak Jayanti' },
+    { re: /makar sankranti/, name: 'Makar Sankranti' },
+    { re: /raksha bandhan/, name: 'Raksha Bandhan' },
+    { re: /baisakhi|vaisakhi/, name: 'Baisakhi' },
+    { re: /karwa chauth/, name: 'Karwa Chauth' },
+    { re: /shivratri/, name: 'Mahashivratri' },
+    { re: /independence day/, name: 'Independence Day' },
+    { re: /republic day/, name: 'Republic Day' },
+  ];
+  const festival = festivals.find(f => f.re.test(lower))?.name;
+  const birthday = /birthday|anniversary|work anniversary/.test(lower);
+  const condolence = /demise|passed away|sad news|condolence|prayers|loss of/.test(lower);
+  const appreciation = /congratulat|achievement|award|appreciat|excellent|outstanding|recogni[sz]e/.test(lower);
+  const urgent = /urgent|deadline|submission|submit|due tomorrow|due today|by tomorrow|by today|immediately|emergency|action required|reminder|pending|overdue/.test(lower);
+
+  let title: string;
+  let content: string;
+
+  if (festival) {
+    title = `Wishing you a very Happy ${festival}!`;
+    const openers = [
+      `Wishing all the members of ${aud} a very Happy ${festival}!`,
+      `A joyful ${festival} to every member of ${aud}!`,
+      `Warm wishes to the entire ${aud} on the occasion of ${festival}!`,
+    ];
+    const wishes = [
+      `May this ${festival} bring joy, prosperity, and togetherness to you and your family.`,
+      `May the celebrations fill your home with light, laughter, and happiness.`,
+      `May this festive season bring new beginnings and endless happiness to all of you.`,
+      `May the blessings of ${festival} bring peace, health, and success to you and your loved ones.`,
+    ];
+    content = [
+      openers[Math.floor(Math.random() * openers.length)],
+      '',
+      wishes[Math.floor(Math.random() * wishes.length)],
+      `Please note: ${clean}.`,
+      `We are grateful for your continued hard work and dedication to our organisation.`,
+      '',
+      'Warm regards,',
+      'Management Team',
+    ].join('\n');
+  } else if (condolence) {
+    title = `In Condolence — ${clean.charAt(0).toUpperCase()}${clean.slice(1)}`.slice(0, 60);
+    const openers = [
+      `It is with deep sadness that we share the news of ${clean} with all of you.`,
+      `We are saddened to inform the ${aud} about ${clean}.`,
+      `With heavy hearts, we convey the news of ${clean} to the ${aud}.`,
+    ];
+    const closers = [
+      `Our thoughts and prayers are with the family in this difficult time.`,
+      `We pray for strength and peace for the family during this moment of grief.`,
+      `Kindly join us in offering condolences and support to the bereaved family.`,
+    ];
+    content = [
+      openers[Math.floor(Math.random() * openers.length)],
+      '',
+      closers[Math.floor(Math.random() * closers.length)],
+      `We request everyone to extend their support and respect the family's privacy.`,
+      '',
+      'With heartfelt sympathy,',
+      'Management Team',
+    ].join('\n');
+  } else if (birthday) {
+    title = `Happy Birthday to our ${aud === 'All Staff' ? 'Colleague' : aud}!`;
+    const openers = [
+      `A very happy birthday to the wonderful members of ${aud} celebrating today!`,
+      `Celebrating a special day — heartfelt birthday wishes to all in ${aud}!`,
+      `It is a special day — birthday wishes to everyone in ${aud} celebrating today!`,
+    ];
+    const wishes = [
+      `May the year ahead bring you joy, good health, and success in everything you do.`,
+      `Wishing you a day filled with happiness and a year filled with blessings.`,
+      `May all your dreams and aspirations come true in the year ahead.`,
+    ];
+    content = [
+      openers[Math.floor(Math.random() * openers.length)],
+      '',
+      wishes[Math.floor(Math.random() * wishes.length)],
+      `Celebration details: ${clean}.`,
+      `Thank you for being an invaluable part of our team.`,
+      '',
+      'With warm wishes,',
+      'Management Team',
+    ].join('\n');
+  } else if (appreciation) {
+    title = `Kudos to our ${aud} — ${clean.charAt(0).toUpperCase()}${clean.slice(1)}`.slice(0, 60);
+    const openers = [
+      `We are thrilled to recognise the incredible effort of ${aud} regarding ${clean}.`,
+      `A big congratulations to ${aud} on ${clean}.`,
+      `We would like to appreciate ${aud} for ${clean}.`,
+    ];
+    const praises = [
+      `Your dedication and professionalism continue to inspire us all.`,
+      `This achievement reflects the hard work, discipline, and commitment of our team.`,
+      `We are truly proud of what you have accomplished together.`,
+    ];
+    const closers = [
+      `Let us continue to raise the bar and achieve even greater heights.`,
+      `Keep up the outstanding work — the best is yet to come!`,
+      `We look forward to many more such milestones ahead.`,
+    ];
+    content = [
+      openers[Math.floor(Math.random() * openers.length)],
+      '',
+      praises[Math.floor(Math.random() * praises.length)],
+      closers[Math.floor(Math.random() * closers.length)],
+      '',
+      'Proud regards,',
+      'Management Team',
+    ].join('\n');
+  } else if (urgent || tone === 'urgent') {
+    title = `Action Required: ${clean.charAt(0).toUpperCase()}${clean.slice(1)}`.slice(0, 60);
+    const openers = [
+      `This is a time-sensitive matter regarding ${clean}. Please respond by the end of today.`,
+      `We request your immediate attention on ${clean}. Please coordinate with management at the earliest.`,
+      `Please prioritise ${clean} and confirm receipt promptly. Your timely response is greatly appreciated.`,
+    ];
+    content = [
+      'URGENT NOTICE:',
+      '',
+      openers[Math.floor(Math.random() * openers.length)],
+      `This notice is directed to ${aud}.`,
+      '',
+      'Thank you for your cooperation,',
+      'Management Team',
+    ].join('\n');
+  } else {
+    const openers = {
+      professional: ['Dear members of staff,', 'To our valued team,', 'I am writing to inform you of the following:'],
+      friendly: ['Hi everyone,', 'Hello team,', 'Good day, hardworking colleagues!'],
+    };
+    const middles = {
+      professional: [
+        `This announcement concerns ${clean}. Please review the details provided and reach out with any questions.`,
+        `We want to keep you informed regarding ${clean}. Kindly take the appropriate next steps as outlined.`,
+        `Please be aware of the following update relating to ${clean}. We appreciate your attention and cooperation.`,
+      ],
+      friendly: [
+        `We are excited to share details about ${clean} with all of you. Do reach out if anything is unclear!`,
+        `Quick heads-up about ${clean} — please read through it when you get a chance.`,
+        `Some news on ${clean} to keep everyone in the loop. Thanks for all your hard work!`,
+      ],
+    };
+    const open = (tone === 'friendly' ? openers.friendly : openers.professional);
+    const mid = (tone === 'friendly' ? middles.friendly : middles.professional);
+    title = `${clean.charAt(0).toUpperCase()}${clean.slice(1)}`.slice(0, 60);
+    content = [
+      open[Math.floor(Math.random() * open.length)],
+      '',
+      mid[Math.floor(Math.random() * mid.length)],
+      `This message is directed to ${aud}.`,
+      '',
+      'Thank you,',
+      'Management Team',
+    ].join('\n');
+  }
+
+  res.json({ success: true, title, content, tone: festival ? 'celebration' : condolence ? 'condolence' : birthday ? 'birthday' : appreciation ? 'appreciation' : (urgent || tone === 'urgent') ? 'urgent' : tone });
+}));
+
 router.post('/announcements', asyncHandler(async (req, res) => {
   const { organisation_id, created_by, title, content, target_role, target_class_id, priority } = req.body;
   
@@ -2949,6 +3819,41 @@ router.post('/announcements', asyncHandler(async (req, res) => {
     
     if (error) throw error;
     res.status(201).json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+router.put('/announcements/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const { title, content, target_role, target_class_id, priority, published_at } = req.body;
+  
+  try {
+    const { data, error } = await supabase
+      .from('announcements')
+      .update({ title, content, target_role, target_class_id, priority, published_at })
+      .eq('id', id)
+      .select()
+      .single();
+    
+    if (error) throw error;
+    res.json(data);
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+router.delete('/announcements/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  
+  try {
+    const { error } = await supabase
+      .from('announcements')
+      .delete()
+      .eq('id', id);
+    
+    if (error) throw error;
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -3016,7 +3921,7 @@ router.post('/parents/bulk', asyncHandler(async (req, res) => {
         results.push({ parent_name: p.parent_name || 'Unknown', parent_email: p.parent_email || '', status: 'failed', error: 'parent_name and parent_email required' });
         continue;
       }
-      const password = p.parent_password || crypto.randomUUID().slice(0, 12) + '!';
+      const password = p.parent_password || generateAlphaDigitPassword();
       const { data: existing } = await supabase.from('users').select('id').eq('email', p.parent_email).maybeSingle();
       let parentUserId: string;
       let isExisting = false;
@@ -3036,8 +3941,11 @@ router.post('/parents/bulk', asyncHandler(async (req, res) => {
         await supabase.from('parents').insert({
           organisation_id, user_id: parentUserId,
           full_name: p.parent_name, email: p.parent_email,
-          phone: p.parent_phone || null, status: 'active'
+          phone: p.parent_phone || null, status: 'active',
+          generated_password: password
         }).select().single();
+      } else {
+        await supabase.from('parents').update({ generated_password: password }).eq('id', existingParentProfile.id);
       }
       if (p.student_id && isValidUUID(p.student_id)) {
         await supabase.from('parent_student_links').insert({
@@ -3046,8 +3954,11 @@ router.post('/parents/bulk', asyncHandler(async (req, res) => {
         }).select().single();
       }
       success++;
-      results.push({ parent_name: p.parent_name, parent_email: p.parent_email, password, status: 'success', student_linked: !!p.student_id });
-      if (!isExisting) getOrgName(organisation_id).then(n => logCredential(organisation_id, n, p.parent_name, p.parent_email, 'parent', 'Management Bulk Import', password));
+      results.push({ parent_name: p.parent_name, parent_email: p.parent_email, password: isExisting ? '' : password, status: 'success', student_linked: !!p.student_id });
+      if (!isExisting) {
+        getOrgName(organisation_id).then(n => logCredential(organisation_id, n, p.parent_name, p.parent_email, 'parent', 'Management Bulk Import', password));
+        sendCredentialEmail(p.parent_email, p.parent_name, password, 'Parent Portal');
+      }
     } catch (e: any) {
       failed++;
       results.push({ parent_name: (p && p.parent_name) || 'Unknown', parent_email: (p && p.parent_email) || '', status: 'failed', error: e.message });
@@ -3065,31 +3976,144 @@ router.post('/parents', asyncHandler(async (req, res) => {
   if (!parent_email) return res.status(400).json({ error: 'parent_email required' });
   if (student_id && !isValidUUID(student_id)) return res.status(400).json({ error: 'Invalid student_id UUID' });
   try {
-    const password = parent_password || crypto.randomUUID().slice(0, 12) + '!';
+    const password = parent_password || generateAlphaDigitPassword();
     const { data: existing } = await supabase.from('users').select('id').eq('email', parent_email).maybeSingle();
     let parentUserId: string;
+    let createdLogin = false;
     if (existing) {
       parentUserId = existing.id;
     } else {
       try {
         parentUserId = await createAuthUser(parent_email, password, parent_name, 'parent', organisation_id);
+        createdLogin = true;
       } catch (authError: any) {
         throw authError;
       }
     }
-    await supabase.from('parents').insert({
+    const { data: existingParentProfile } = await supabase
+      .from('parents')
+      .select('id')
+      .eq('organisation_id', organisation_id)
+      .eq('user_id', parentUserId)
+      .maybeSingle();
+    if (existingParentProfile) {
+      await supabase.from('parents').update({
+        full_name: parent_name, email: parent_email,
+        phone: phone || null, status: 'active',
+        generated_password: password
+      }).eq('id', existingParentProfile.id);
+    } else {
+      await supabase.from('parents').insert({
       organisation_id, user_id: parentUserId,
       full_name: parent_name, email: parent_email,
-      phone: phone || null, status: 'active'
-    }).select().single();
-    if (student_id) {
-      await supabase.from('parent_student_links').insert({
-        organisation_id, parent_id: parentUserId, student_id,
-        relationship: relationship || 'guardian'
+      phone: phone || null, status: 'active',
+      generated_password: password
       }).select().single();
     }
-    res.status(201).json({ parent_user_id: parentUserId, credentials: { email: parent_email, password } });
-    getOrgName(organisation_id).then(n => logCredential(organisation_id, n, parent_name, parent_email, 'parent', 'Management Portal', password));
+    if (student_id) {
+      await supabase.from('parent_student_links').upsert({
+        organisation_id, parent_id: parentUserId, student_id,
+        relationship: relationship || 'guardian'
+      }, { onConflict: 'parent_id,student_id' }).select().single();
+    }
+    res.status(201).json({
+      parent_user_id: parentUserId,
+      credentials: createdLogin ? { email: parent_email, password } : null,
+    });
+    if (createdLogin) {
+      getOrgName(organisation_id).then(n => logCredential(organisation_id, n, parent_name, parent_email, 'parent', 'Management Portal', password));
+      sendCredentialEmail(parent_email, parent_name, password, 'Parent Portal');
+    }
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+router.put('/parents/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  let { organisation_id, parent_name, parent_email, student_id, relationship, phone, status } = req.body;
+  if (!organisation_id) organisation_id = req.user?.organisationId || '';
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid parent id' });
+  if (!organisation_id || !isValidUUID(organisation_id)) return res.status(400).json({ error: 'Invalid organisation_id' });
+  if (student_id && !isValidUUID(student_id)) return res.status(400).json({ error: 'Invalid student_id UUID' });
+  if (!parent_name) return res.status(400).json({ error: 'parent_name required' });
+  if (!parent_email) return res.status(400).json({ error: 'parent_email required' });
+
+  try {
+    const { data: parentProfile, error: parentError } = await supabase
+      .from('parents')
+      .select('id, user_id')
+      .eq('id', id)
+      .eq('organisation_id', organisation_id)
+      .maybeSingle();
+    if (parentError) throw parentError;
+    if (!parentProfile) return res.status(404).json({ error: 'Parent not found' });
+
+    await supabase.from('parents').update({
+      full_name: parent_name,
+      email: parent_email,
+      phone: phone || null,
+      status: status || 'active',
+    }).eq('id', id);
+
+    if (parentProfile.user_id) {
+      await supabase.from('users').update({
+        full_name: parent_name,
+        email: parent_email,
+        status: status || 'active',
+      }).eq('id', parentProfile.user_id).eq('organisation_id', organisation_id);
+    }
+
+    if (parentProfile.user_id) {
+      await supabase
+        .from('parent_student_links')
+        .delete()
+        .eq('organisation_id', organisation_id)
+        .eq('parent_id', parentProfile.user_id);
+      if (student_id) {
+        await supabase.from('parent_student_links').insert({
+          organisation_id,
+          parent_id: parentProfile.user_id,
+          student_id,
+          relationship: relationship || 'guardian',
+        });
+        // Sync parent phone and relationship back to the student record
+        const studentSync: any = {};
+        if (phone !== undefined) studentSync.parent_phone = phone;
+        if (relationship !== undefined) studentSync.parent_relationship = relationship;
+        if (parent_name !== undefined) studentSync.parent_name = parent_name;
+        if (parent_email !== undefined) studentSync.parent_email = parent_email;
+        if (Object.keys(studentSync).length > 0) {
+          await supabase.from('students').update(studentSync).eq('id', student_id).eq('organisation_id', organisation_id);
+        }
+      }
+    }
+
+    res.json({ id, parent_user_id: parentProfile.user_id });
+  } catch (error: any) {
+    res.status(500).json({ error: error.message });
+  }
+}));
+
+// Delete parent
+router.delete('/parents/:id', asyncHandler(async (req, res) => {
+  const { id } = req.params;
+  const orgId = req.query.organisation_id || req.body?.organisation_id || req.user?.organisationId || '';
+  if (!isValidUUID(id)) return res.status(400).json({ error: 'Invalid parent id' });
+  if (!orgId || !isValidUUID(orgId)) return res.status(400).json({ error: 'Invalid organisation_id' });
+
+  try {
+    const { data: parent } = await supabase.from('parents').select('id, user_id').eq('id', id).eq('organisation_id', orgId).maybeSingle();
+    if (!parent) return res.status(404).json({ error: 'Parent not found' });
+
+    if (parent.user_id) {
+      await supabase.from('parent_student_links').delete().eq('parent_id', parent.user_id).eq('organisation_id', orgId);
+      await supabase.from('users').delete().eq('id', parent.user_id).eq('organisation_id', orgId);
+      await supabase.auth.admin.deleteUser(parent.user_id).catch(() => {});
+    }
+
+    await supabase.from('parents').delete().eq('id', id).eq('organisation_id', orgId);
+    res.json({ success: true });
   } catch (error: any) {
     res.status(500).json({ error: error.message });
   }
@@ -3839,7 +4863,7 @@ router.get('/attendance/class/:class_id/:date', asyncHandler(async (req, res) =>
   const { class_id, date } = req.params;
   try {
     const { data: classMap } = await supabase.from('class_student_map')
-      .select('*, student:students(id, full_name, roll_number, section, status)')
+      .select('*, student:students(id, full_name, roll_number, section_id, sections(name), status)')
       .eq('class_id', class_id);
     const students = (classMap || [])
       .filter((cm: any) => cm.student?.status === 'active')
@@ -3883,7 +4907,7 @@ router.get('/attendance/daily/:organisation_id/:date', asyncHandler(async (req, 
   const { organisation_id, date } = req.params;
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, section').eq('organisation_id', organisation_id),
+      supabase.from('students').select('id, full_name, roll_number, section_id, sections(name)').eq('organisation_id', organisation_id),
       supabase.from('attendance').select('*, student:students(full_name, roll_number)').eq('organisation_id', organisation_id).eq('date', date)
     ]);
     const students = studentsRes.data || [];
@@ -3924,7 +4948,7 @@ router.get('/attendance-report/:organisation_id', asyncHandler(async (req, res) 
   const { organisation_id } = req.params;
   try {
     const [studentsRes, attendanceRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, section').eq('organisation_id', organisation_id),
+      supabase.from('students').select('id, full_name, roll_number, section_id, sections(name)').eq('organisation_id', organisation_id),
       supabase.from('attendance').select('*, student:students(full_name, roll_number)').eq('organisation_id', organisation_id).order('date', { ascending: false }).limit(5000)
     ]);
 
@@ -4522,45 +5546,124 @@ router.post('/collaboration/projects', asyncHandler(async (req, res) => {
 }));
 
 // === ADMISSION ===
+const isMissingAdmissionTable = (error: any) =>
+  error?.code === '42P01' ||
+  error?.code === 'PGRST205' ||
+  String(error?.message || '').includes('admission_applications') ||
+  String(error?.message || '').includes('admission_enquiries');
+
+const admissionMigrationMessage =
+  'Admission database tables are missing. Run supabase/migrations/20260729000000_admission_module.sql in Supabase SQL Editor.';
+
 router.get('/admission/applications/:organisation_id', asyncHandler(async (req, res) => {
   const { organisation_id } = req.params;
   try {
-    const { data, error } = await supabase.from('admission_applications').select('*').eq('organisation_id', organisation_id);
+const { data, error } = await supabase
+      .from('admission_applications')
+      .select('*, academic_year_info:academic_years(name)')
+      .eq('organisation_id', organisation_id)
+      .order('created_at', { ascending: false });
     if (error) throw error; res.json(data || []);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 router.post('/admission/applications', asyncHandler(async (req, res) => {
-  const { organisation_id, applicant_name, applicant_email, phone, applying_class, parent_name, parent_phone } = req.body;
+const { organisation_id, applicant_name, applicant_email, phone, applying_class, parent_name, parent_phone, academic_year_id, academic_year } = req.body;
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+  if (!applicant_name) return res.status(400).json({ error: 'applicant_name required' });
+  if (!applying_class) return res.status(400).json({ error: 'applying_class required' });
   try {
-    const { data, error } = await supabase.from('admission_applications').insert({ organisation_id, applicant_name, applicant_email, phone, applying_class, parent_name, parent_phone, status: 'pending' }).select().single();
+    const yearId = academic_year_id && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(academic_year_id) ? academic_year_id : null;
+    const { data, error } = await supabase.from('admission_applications').insert({ organisation_id, applicant_name, applicant_email, phone, applying_class, parent_name, parent_phone, academic_year_id: yearId, academic_year: academic_year || null, status: 'pending' }).select().single();
     if (error) throw error; res.status(201).json(data);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 router.put('/admission/applications/:id/status', asyncHandler(async (req, res) => {
   const { id } = req.params;
   const { status } = req.body;
+  if (!['pending', 'approved', 'rejected', 'waitlisted'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid admission status' });
+  }
   try {
-    const { data, error } = await supabase.from('admission_applications').update({ status }).eq('id', id).select().single();
-    if (error) throw error; res.json(data);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+    // Load the full application so the academic year is preserved on approval
+    const { data: existing, error: loadErr } = await supabase.from('admission_applications').select('*').eq('id', id).single();
+    if (loadErr) throw loadErr;
+
+    // Default year to the active academic year if the application has none
+    let academicYearId = existing?.academic_year_id || null;
+    let academicYearLabel = existing?.academic_year || null;
+    if (!academicYearId) {
+      const { data: currentYear } = await supabase.from('academic_years').select('id, name').eq('organisation_id', req.user?.organisationId || existing?.organisation_id || '').eq('is_current', true).single();
+      academicYearId = currentYear?.id || null;
+      academicYearLabel = academicYearLabel || currentYear?.name || null;
+    }
+
+    const { data, error } = await supabase.from('admission_applications')
+      .update({ status, academic_year_id: academicYearId, academic_year: academicYearLabel })
+      .eq('id', id).select().single();
+    if (error) throw error;
+
+    // Mirror approved applications into the newer `admissions` table (idempotent).
+    if (status === 'approved' && existing?.organisation_id) {
+      const admissionPayload = {
+        application_id: existing.id,
+        organisation_id: existing.organisation_id,
+        student_id: existing.student_id || null,
+        full_name: existing.applicant_name || 'Unknown',
+        email: existing.applicant_email,
+        phone: existing.phone,
+        class_applying: existing.applying_class,
+        academic_year: academicYearLabel,
+        status: 'approved',
+        document_url: existing.document_url || null
+      };
+      const { data: already } = await supabase.from('admissions').select('id').eq('application_id', existing.id).maybeSingle();
+      const { error: mirrorErr } = already
+        ? await supabase.from('admissions').update(admissionPayload).eq('id', already.id)
+        : await supabase.from('admissions').insert(admissionPayload);
+      if (mirrorErr) throw mirrorErr;
+    } else if (existing?.organisation_id) {
+      // Rejecting or waitlisting removes any mirrored admissions record.
+      const { error: mirrorErr } = await supabase.from('admissions').delete().eq('application_id', existing.id);
+      if (mirrorErr) throw mirrorErr;
+    }
+
+    res.json(data);
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 router.get('/admission/enquiries/:organisation_id', asyncHandler(async (req, res) => {
   const { organisation_id } = req.params;
   try {
-    const { data, error } = await supabase.from('admission_enquiries').select('*').eq('organisation_id', organisation_id);
+    const { data, error } = await supabase
+      .from('admission_enquiries')
+      .select('*')
+      .eq('organisation_id', organisation_id)
+      .order('created_at', { ascending: false });
     if (error) throw error; res.json(data || []);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 router.post('/admission/enquiries', asyncHandler(async (req, res) => {
   const { organisation_id, name, email, phone, message } = req.body;
+  if (!organisation_id) return res.status(400).json({ error: 'organisation_id required' });
+  if (!name) return res.status(400).json({ error: 'name required' });
+  if (!phone) return res.status(400).json({ error: 'phone required' });
   try {
     const { data, error } = await supabase.from('admission_enquiries').insert({ organisation_id, name, email, phone, message }).select().single();
     if (error) throw error; res.status(201).json(data);
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 router.get('/admission/reports/:organisation_id', asyncHandler(async (req, res) => {
@@ -4577,9 +5680,12 @@ router.get('/admission/reports/:organisation_id', asyncHandler(async (req, res) 
       pending: applications.filter((a: any) => a.status === 'pending').length,
       approved: applications.filter((a: any) => a.status === 'approved').length,
       rejected: applications.filter((a: any) => a.status === 'rejected').length,
+      waitlisted: applications.filter((a: any) => a.status === 'waitlisted').length,
       totalEnquiries: enquiries.length,
     });
-  } catch (error: any) { res.status(500).json({ error: error.message }); }
+  } catch (error: any) {
+    res.status(isMissingAdmissionTable(error) ? 503 : 500).json({ error: isMissingAdmissionTable(error) ? admissionMigrationMessage : error.message });
+  }
 }));
 
 // === STAFF MANAGEMENT ===
@@ -4677,7 +5783,10 @@ async function listParentLinks(req: any, res: any, orgId: string) {
   const linkedStudentIds = [...new Set(links.map(l => l.student_id).filter(Boolean))];
   let students: any[] = [];
   if (linkedStudentIds.length > 0) {
-    const { data } = await supabase.from('students').select('id, full_name, roll_number').in('id', linkedStudentIds);
+    const { data } = await supabase
+      .from('students')
+      .select('id, full_name, roll_number, class_id, section_id, class_info:classes!class_id(name), section_info:sections!section_id(name)')
+      .in('id', linkedStudentIds);
     students = data || [];
   }
   const studentMap = Object.fromEntries(students.map(s => [s.id, s]));
@@ -4685,10 +5794,20 @@ async function listParentLinks(req: any, res: any, orgId: string) {
   const result = (parentRows || []).map(p => {
     const link = linkMap[p.user_id];
     const user = userMap[p.user_id] || emailMap[p.email] || null;
+    const email = user?.email || p.email;
     return {
       id: p.id,
       parent_id: p.user_id,
-      parent: user || { full_name: p.full_name, email: p.email },
+      parent: {
+        ...(user || {}),
+        full_name: user?.full_name || p.full_name,
+        email,
+        phone: p.phone || user?.phone || '',
+      },
+      parent_name: user?.full_name || p.full_name,
+      parent_email: email,
+      parent_phone: p.phone || user?.phone || '',
+      generated_password: p.generated_password || null,
       student: link ? (studentMap[link.student_id] || null) : null,
       student_id: link?.student_id || null,
       relationship: link?.relationship || '',
@@ -4878,12 +5997,21 @@ router.post('/credentials/create-student', asyncHandler(async (req, res) => {
       await supabase.from('users').delete().eq('id', user.id);
       throw authError;
     }
-    const { data: student } = await supabase.from('students').insert({ organisation_id, user_id: user.id, full_name, roll_number, email, status: 'active' }).select().single();
-    if (student_class && student) {
-      const { data: cls } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
-      if (cls) {
-        await supabase.from('class_student_map').insert({ class_id: cls.id, student_id: student.id });
+    let resolvedClassId: string | null = null;
+    if (student_class) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(student_class);
+      if (isUuid) {
+        resolvedClassId = student_class;
+      } else {
+        const { data: cls } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
+        resolvedClassId = cls?.id || null;
       }
+    }
+    const { data: student } = await supabase.from('students').insert({
+      organisation_id, user_id: user.id, full_name, roll_number, email, class_id: resolvedClassId, status: 'active'
+    }).select().single();
+    if (resolvedClassId && student) {
+      await supabase.from('class_student_map').upsert({ class_id: resolvedClassId, student_id: student.id, organisation_id }, { onConflict: 'class_id,student_id' });
     }
     getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, 'student', 'Management Credentials', password));
     res.status(201).json({ user, credentials: { email, password } });
@@ -4906,7 +6034,7 @@ router.post('/credentials/create-staff', asyncHandler(async (req, res) => {
       await supabase.from('users').delete().eq('id', user.id);
       throw authError;
     }
-    await supabase.from('teachers').insert({ organisation_id, user_id: user.id, teacher_code: `STAFF-${Date.now()}`, full_name, status: 'active' });
+    await supabase.from('staff_records').insert({ organisation_id, user_id: user.id, staff_unique_id: `STAFF-${Date.now()}`, full_name, status: 'active' });
     getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, staffRole, 'Management Credentials', password));
     res.status(201).json({ user, credentials: { email, password } });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
@@ -4914,22 +6042,24 @@ router.post('/credentials/create-staff', asyncHandler(async (req, res) => {
 
 router.post('/credentials/create-parent', asyncHandler(async (req, res) => {
   const { organisation_id, full_name, email, password, student_id, relationship } = req.body;
-  if (!organisation_id || !full_name || !email || !password) {
+  if (!organisation_id || !full_name || !email) {
     return res.status(400).json({ error: 'Required fields missing' });
   }
   try {
-    const pwdHash = await bcrypt.hash(password, 10);
+    const loginPassword = password || generateAlphaDigitPassword();
+    const pwdHash = await bcrypt.hash(loginPassword, 10);
     const { data: user, error: userError } = await supabase.from('users').insert({ organisation_id, full_name, email, password_hash: pwdHash, role: 'parent', status: 'active' }).select().single();
     if (userError) throw userError;
     try {
-      await createAuthUser(email, password, full_name, 'parent', organisation_id);
+      await createAuthUser(email, loginPassword, full_name, 'parent', organisation_id);
     } catch (authError: any) {
       await supabase.from('users').delete().eq('id', user.id);
       throw authError;
     }
     if (student_id) await supabase.from('parent_student_links').insert({ parent_id: user.id, student_id, relationship: relationship || 'guardian' });
-    getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, 'parent', 'Management Credentials', password));
-    res.status(201).json({ user, credentials: { email, password } });
+    getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, 'parent', 'Management Credentials', loginPassword));
+    sendCredentialEmail(email, full_name, loginPassword, 'Parent Portal');
+    res.status(201).json({ user, credentials: { email, password: loginPassword } });
   } catch (error: any) { res.status(500).json({ error: error.message }); }
 }));
 
@@ -5145,7 +6275,7 @@ router.get('/teacher/students/:teacher_id', asyncHandler(async (req, res) => {
   if (classNames.length > 0) {
     // For simplicity, we match the organization or class names if mapped.
     // Let's filter by organization_id matching the teacher's org.
-    const { data: teacher } = await supabase.from('teachers').select('organisation_id').eq('id', teacher_id).single();
+    const { data: teacher } = await supabase.from('staff_records').select('organisation_id').eq('id', teacher_id).single();
     if (teacher) {
       query = query.eq('organisation_id', teacher.organisation_id);
     }

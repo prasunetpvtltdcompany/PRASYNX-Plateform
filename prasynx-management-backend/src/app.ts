@@ -5,6 +5,7 @@ import cookieParser from 'cookie-parser';
 import { config } from './config';
 import { errorHandler, notFoundHandler } from './middleware/errorHandler';
 import { apiLimiter, authLimiter } from './middleware/rateLimiter';
+import { universalAudit } from './middleware/universal-audit';
 
 // Route imports
 import authRoutes from './routes/refactored/auth.routes';
@@ -40,14 +41,19 @@ import credentialsRoutesV2 from './routes/refactored/credentials.routes';
 import storeRoutesV2 from './routes/refactored/store.routes';
 import transportRoutesV2 from './routes/refactored/transport.routes';
 import hostelRoutesV2 from './routes/refactored/hostel.routes';
+import staffExpensesRoutesV2 from './routes/refactored/staff-expenses.routes';
 import academicRoutesV4 from './routes/v4/academic.routes';
 import homeworkRoutesV4 from './routes/v4/homework.routes';
 import promotionRoutesV4 from './routes/v4/promotion.routes';
 import marksRoutesV4 from './routes/v4/marks.routes';
 import communicationRoutesV4 from './routes/v4/communication.routes';
+import disciplineRoutesV4 from './routes/v4/discipline.routes';
+import healthRoutesV4 from './routes/v4/health.routes';
 import exportRoutesV4 from './routes/v4/export.routes';
 import auditRoutesV4 from './routes/v4/audit.routes';
 import wosRoutes from './routes/wos.routes';
+import admissionManagementRoutes from './routes/admission-management';
+import eventsManagementRoutes from './routes/events-management';
 
 const app = express();
 
@@ -59,8 +65,12 @@ app.use(cors({
   origin: config.allowedOrigins,
   credentials: true
 }));
-app.use(express.json({ limit: '1mb' }));
+app.use(express.json({ limit: '10mb' }));
 app.use('/api/', apiLimiter);
+
+// Global audit capture — logs every successful state-changing request
+// across all routers (management, v2/v4, events, admissions, wos, …)
+app.use(universalAudit());
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -104,6 +114,7 @@ app.use('/api/v2/credentials', credentialsRoutesV2);
 app.use('/api/v2/store', storeRoutesV2);
 app.use('/api/v2/transport', transportRoutesV2);
 app.use('/api/v2/hostel', hostelRoutesV2);
+app.use('/api/v2/staff-expenses', staffExpensesRoutesV2);
 
 // V4 Academic routes
 app.use('/api/v4/academic', academicRoutesV4);
@@ -111,8 +122,16 @@ app.use('/api/v4/homework', homeworkRoutesV4);
 app.use('/api/v4/promotion', promotionRoutesV4);
 app.use('/api/v4/marks', marksRoutesV4);
 app.use('/api/v4/communication', communicationRoutesV4);
+app.use('/api/v4/discipline', disciplineRoutesV4);
+app.use('/api/v4/health', healthRoutesV4);
 app.use('/api/v4/export', exportRoutesV4);
 app.use('/api/v4/audit', auditRoutesV4);
+
+// Admission Management
+app.use('/api/admission-management', admissionManagementRoutes);
+
+// Events Management (events, clubs, sports teams)
+app.use('/api/events-management', eventsManagementRoutes);
 
 // WOS (Workforce Operating System) — accessible by staff AND management users
 app.use('/api/wos', wosRoutes);

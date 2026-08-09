@@ -4,7 +4,7 @@ export class PayrollService {
   async getDashboard(orgId: string) {
     const [payrollRes, staffRes, structuresRes, deductionsRes] = await Promise.all([
       supabase.from('payroll_records').select('*').eq('organisation_id', orgId),
-      supabase.from('teachers').select('id, full_name, status, salary').eq('organisation_id', orgId),
+      supabase.from('staff_records').select('id, full_name, status, salary').eq('organisation_id', orgId),
       supabase.from('salary_structures').select('*').eq('organisation_id', orgId),
       supabase.from('payroll_deductions').select('*').eq('organisation_id', orgId),
     ]);
@@ -61,7 +61,7 @@ export class PayrollService {
   async getPayrollRecords(orgId: string, filters?: any) {
     let query = supabase
       .from('payroll_records')
-      .select('*, staff:teachers!staff_id(full_name, teacher_code, department, designation)')
+      .select('*, staff:staff_records!staff_id(full_name, staff_unique_id, department, designation)')
       .eq('organisation_id', orgId);
 
     if (filters?.status) query = query.eq('status', filters.status);
@@ -181,7 +181,7 @@ export class PayrollService {
 
   async getEmployeeSalaries(orgId: string) {
     const { data, error } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*, payroll_records(gross_amount, net_amount, deductions, status, payroll_month, payment_date)')
       .eq('organisation_id', orgId)
       .order('full_name');
@@ -227,7 +227,7 @@ export class PayrollService {
   async getAnalytics(orgId: string) {
     const [payrollRes, staffRes] = await Promise.all([
       supabase.from('payroll_records').select('*').eq('organisation_id', orgId).order('created_at'),
-      supabase.from('teachers').select('department, designation, salary').eq('organisation_id', orgId),
+      supabase.from('staff_records').select('department, designation, salary').eq('organisation_id', orgId),
     ]);
 
     const payrolls = payrollRes.data || [];
@@ -295,7 +295,7 @@ export class PayrollService {
     const [payrolls, structures, staff] = await Promise.all([
       this.getPayrollRecords(orgId),
       this.getSalaryStructures(orgId),
-      supabase.from('teachers').select('*').eq('organisation_id', orgId),
+      supabase.from('staff_records').select('*').eq('organisation_id', orgId),
     ]);
 
     const totalGross = payrolls.reduce((s: number, p: any) => s + (p.gross_amount || 0), 0);

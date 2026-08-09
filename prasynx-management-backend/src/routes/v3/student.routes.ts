@@ -23,7 +23,7 @@ async function getOrgName(orgId: string): Promise<string> {
 
 // POST /students - Create single student
 router.post('/students', async (req: Request, res: Response) => {
-  const { organisation_id, full_name, roll_number, student_class, section, phone, email, password, parent_email, parent_phone } = req.body;
+  const { organisation_id, full_name, roll_number, student_class, section, phone, email, password, parent_email, parent_phone, parent_name, parent_relationship } = req.body;
   if (!organisation_id || !full_name || !roll_number) {
     return res.status(400).json({ error: 'Required fields missing' });
   }
@@ -43,22 +43,38 @@ router.post('/students', async (req: Request, res: Response) => {
         throw authError;
       }
     }
+    
+    // Resolve student_class/section to UUIDs
+    let resolvedClassId = null;
+    let resolvedSectionId = null;
+    if (student_class) {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(student_class)) {
+        resolvedClassId = student_class;
+      } else {
+        const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
+        resolvedClassId = classData?.id || null;
+      }
+    }
+    if (section && resolvedClassId) {
+      if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(section)) {
+        resolvedSectionId = section;
+      } else {
+        const { data: sectData } = await supabase.from('sections').select('id').eq('name', section).eq('class_id', resolvedClassId).maybeSingle();
+        resolvedSectionId = sectData?.id || null;
+      }
+    }
+
     const { data, error } = await supabase.from('students').insert([{
-      organisation_id, full_name, roll_number, section, phone,
+      organisation_id, full_name, roll_number, class_id: resolvedClassId, section_id: resolvedSectionId, phone,
       user_id: createdUser?.id || null, email: email || null,
-      parent_email, parent_phone, status: 'active'
+      parent_email, parent_name, parent_phone, parent_relationship: parent_relationship || 'parent', status: 'active'
     }]).select();
     if (error) {
       if (authUserId) await supabase.auth.admin.deleteUser(authUserId).catch(() => {});
       if (createdUser) await supabase.from('users').delete().eq('id', createdUser.id);
       throw error;
     }
-    if (student_class && data?.[0]?.id) {
-      const { data: classData } = await supabase.from('classes').select('id').eq('name', student_class).eq('organisation_id', organisation_id).maybeSingle();
-      if (classData?.id) {
-        await supabase.from('class_student_map').insert({ class_id: classData.id, student_id: data[0].id });
-      }
-    }
+    
     if (email && password) {
       res.status(201).json({ student: data?.[0], credentials: { email, password } });
       getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, 'student', 'Management Portal'));
@@ -97,24 +113,41 @@ router.post('/students/bulk', async (req: Request, res: Response) => {
         try { authUserId = await createAuthUser(s.email, s.password, s.full_name, 'student', organisation_id); }
         catch (ae: any) { await supabase.from('users').delete().eq('id', user.id); throw ae; }
       }
+      
+      // Resolve student_class/section to UUIDs
+      let resolvedClassId = null;
+      let resolvedSectionId = null;
+      if (s.student_class) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.student_class)) {
+          resolvedClassId = s.student_class;
+        } else {
+          const { data: classData } = await supabase.from('classes').select('id').eq('name', s.student_class).eq('organisation_id', organisation_id).maybeSingle();
+          resolvedClassId = classData?.id || null;
+        }
+      }
+      if (s.section && resolvedClassId) {
+        if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(s.section)) {
+          resolvedSectionId = s.section;
+        } else {
+          const { data: sectData } = await supabase.from('sections').select('id').eq('name', s.section).eq('class_id', resolvedClassId).maybeSingle();
+          resolvedSectionId = sectData?.id || null;
+        }
+      }
+
       const { data, error } = await supabase.from('students').insert([{
         organisation_id, full_name: s.full_name, roll_number: s.roll_number,
-        section: s.section || null,
+        class_id: resolvedClassId, section_id: resolvedSectionId,
         phone: s.phone || null, email: s.email || null,
         user_id: createdUserId, parent_email: s.parent_email || null,
-        parent_phone: s.parent_phone || null, status: 'active'
+        parent_phone: s.parent_phone || null, parent_name: s.parent_name || null,
+        parent_relationship: s.parent_relationship || 'parent', status: 'active'
       }]).select();
       if (error) {
         if (authUserId) await supabase.auth.admin.deleteUser(authUserId).catch(() => {});
         if (createdUserId) await supabase.from('users').delete().eq('id', createdUserId);
         throw error;
       }
-      if (s.student_class && data?.[0]?.id) {
-        const { data: classData } = await supabase.from('classes').select('id').eq('name', s.student_class).eq('organisation_id', organisation_id).maybeSingle();
-        if (classData?.id) {
-          await supabase.from('class_student_map').insert({ class_id: classData.id, student_id: data[0].id });
-        }
-      }
+      
       success++;
       const result: any = { full_name: s.full_name, roll_number: s.roll_number, status: 'success' };
       if (s.email) result.email = s.email;

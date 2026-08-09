@@ -69,22 +69,24 @@ export class AuditLogsService {
     limit?: number;
   }) {
     const page = filters?.page || 1;
-    const limit = filters?.limit || 50;
+    const limit = Math.min(filters?.limit || 50, 200);
     const offset = (page - 1) * limit;
 
     let query = supabase
       .from('audit_logs')
-      .select('*', { count: 'exact' })
+      .select('*, users:user_id(email, full_name, role)', { count: 'exact' })
       .eq('organisation_id', orgId);
 
-    if (filters?.action) query = query.eq('action', filters.action);
+    if (filters?.action) query = query.ilike('action', `${filters.action}%`);
     if (filters?.entityType) query = query.eq('entity_type', filters.entityType);
     if (filters?.severity) query = query.eq('severity', filters.severity);
     if (filters?.userId) query = query.eq('user_id', filters.userId);
     if (filters?.from) query = query.gte('created_at', filters.from);
     if (filters?.to) query = query.lte('created_at', filters.to);
     if (filters?.search) {
-      query = query.or(`action.ilike.%${filters.search}%,entity_type.ilike.%${filters.search}%,details->>'description'.ilike.%${filters.search}%`);
+      query = query.or(
+        `action.ilike.%${filters.search}%,entity_type.ilike.%${filters.search}%,entity_id.ilike.%${filters.search}%,users.email.ilike.%${filters.search}%,users.full_name.ilike.%${filters.search}%`
+      );
     }
 
     const { data, count, error } = await query
@@ -94,7 +96,12 @@ export class AuditLogsService {
     if (error) throw new BadRequestError(error.message);
 
     return {
-      data: data || [],
+      data: (data || []).map(l => ({
+        ...l,
+        user_name: l.users?.full_name || null,
+        user_email: l.users?.email || null,
+        users: undefined,
+      })),
       pagination: {
         page,
         limit,
@@ -107,11 +114,12 @@ export class AuditLogsService {
   async getLogById(logId: string) {
     const { data, error } = await supabase
       .from('audit_logs')
-      .select('*, users:user_id(email, name)')
+      .select('*, users:user_id(email, full_name)')
       .eq('id', logId)
       .single();
     if (error) throw new BadRequestError(error.message);
-    return data;
+    const { users, ...rest } = data || {};
+    return { ...rest, user_name: users?.full_name || null, user_email: users?.email || null };
   }
 
   async createLog(orgId: string, data: any) {

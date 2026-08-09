@@ -26,7 +26,7 @@ export class StudentLoginController {
       const { data: cstm } = await supabase.from('class_subject_teacher_map').select('teacher_id').in('class_id', classIds);
       const teacherIds = [...new Set(cstm?.map(t => t.teacher_id) || [])];
       if (teacherIds.length > 0) {
-        const { data: t } = await supabase.from('teachers').select('*').in('id', teacherIds);
+        const { data: t } = await supabase.from('staff_records').select('*').in('id', teacherIds);
         teachers = t || [];
       }
     }

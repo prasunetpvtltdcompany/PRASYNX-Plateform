@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect, useRef } from 'react';
+import type { ComponentType } from 'react';
 
 export interface ApiState<T> {
   data: T | null;
@@ -116,13 +117,15 @@ export function ErrorState({ message, onRetry }: { message: string; onRetry?: ()
   );
 }
 
-export function EmptyState({ message = 'No data available', action }: { message?: string; action?: { label: string; onClick: () => void } }) {
+export function EmptyState({ message = 'No data available', action, icon: Icon }: { message?: string; action?: { label: string; onClick: () => void }; icon?: ComponentType<{ size?: number | string; className?: string }> }) {
   return (
     <div className="flex flex-col items-center justify-center py-12 text-center">
       <div className="w-12 h-12 rounded-xl bg-gray-50 flex items-center justify-center mb-3">
+        {Icon ? <Icon size={24} className="w-6 h-6 text-gray-300" /> : (
         <svg className="w-6 h-6 text-gray-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
         </svg>
+        )}
       </div>
       <p className="text-sm font-medium text-gray-500">{message}</p>
       {action && (

@@ -4,7 +4,7 @@ export class AIService {
   // ========== ATTENDANCE AI ==========
 
   async analyzeAttendance(orgId: string, studentId?: string) {
-    let query = supabase.from('attendance').select('*, student:students(full_name, student_class)');
+    let query = supabase.from('attendance').select('*, student:students(full_name, class_id, classes(name))');
     if (studentId) {
       query = query.eq('student_id', studentId);
     } else {

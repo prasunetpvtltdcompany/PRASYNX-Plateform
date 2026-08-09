@@ -115,7 +115,7 @@ export class FeeManagementService {
   async getStudentFees(orgId: string, params?: { search?: string; status?: string; class?: string }) {
     let query = supabase
       .from('student_fees')
-      .select('*, students!inner(full_name, admission_number, class_id, section)')
+      .select('*, students!inner(full_name, admission_number, class_id, section_id, sections(name))')
       .eq('organisation_id', orgId);
 
     if (params?.status) query = query.eq('status', params.status);
@@ -131,7 +131,7 @@ export class FeeManagementService {
       full_name: (sf as any).students?.full_name || 'Unknown',
       admission_number: (sf as any).students?.admission_number || '—',
       class: (sf as any).students?.class_id || '—',
-      section: (sf as any).students?.section || '—',
+      section: (sf as any).students?.sections?.name || '—',
       totalFee: sf.total_fee || 0,
       paidAmount: sf.paid_amount || 0,
       pendingAmount: (sf.total_fee || 0) - (sf.paid_amount || 0),

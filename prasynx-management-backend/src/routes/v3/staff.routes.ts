@@ -37,12 +37,12 @@ router.post('/staff', async (req: Request, res: Response) => {
     if (ue) throw ue;
     try { await createAuthUser(email, pwd, full_name, staffRole, organisation_id); }
     catch (ae: any) { await supabase.from('users').delete().eq('id', user.id); throw ae; }
-    const { data: teacher, error: te } = await supabase.from('teachers').insert({
-      organisation_id, user_id: user.id, full_name, teacher_code: teacherCode, subject, phone, status: 'active'
+    const { data: teacher, error: te } = await supabase.from('staff_records').insert({
+      organisation_id, user_id: user.id, full_name, staff_unique_id: teacherCode, subject, phone, status: 'active'
     }).select().single();
     if (te) { await supabase.from('users').delete().eq('id', user.id); throw te; }
     getOrgName(organisation_id).then(n => logCredential(organisation_id, n, full_name, email, staffRole, 'Management Portal'));
-    res.json({ success: true, credentials: { email, password: pwd, role: staffRole, teacher_code: teacherCode, full_name }, staff_id: teacher.id, user_id: user.id });
+    res.json({ success: true, credentials: { email, password: pwd, role: staffRole, staff_unique_id: teacherCode, full_name }, staff_id: teacher.id, user_id: user.id });
   } catch (e: any) { res.status(500).json({ error: e.message }); }
 });
 
@@ -71,8 +71,8 @@ router.post('/staff/bulk', async (req: Request, res: Response) => {
       let authUserId: string | null = null;
       try { authUserId = await createAuthUser(s.email, pwd, s.full_name, staffRole, organisation_id); }
       catch (ae: any) { await supabase.from('users').delete().eq('id', user.id); throw ae; }
-      const { error: te } = await supabase.from('teachers').insert({
-        organisation_id, user_id: user.id, full_name: s.full_name, teacher_code: teacherCode, subject: s.subject || null, status: 'active'
+      const { error: te } = await supabase.from('staff_records').insert({
+        organisation_id, user_id: user.id, full_name: s.full_name, staff_unique_id: teacherCode, subject: s.subject || null, status: 'active'
       });
       if (te) {
         if (authUserId) await supabase.auth.admin.deleteUser(authUserId).catch(() => {});

@@ -10,7 +10,7 @@ async function main() {
   console.log('Connected to DB. Creating synchronization and workload triggers...');
 
   const query = `
-    -- Function to sync insert/update from teachers to staff_profiles
+    -- Function to sync insert/update from staff_records to staff_profiles
     CREATE OR REPLACE FUNCTION public.sync_teacher_to_staff_profile()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -21,7 +21,7 @@ async function main() {
         NEW.id,
         NEW.organisation_id,
         NEW.user_id,
-        COALESCE(NEW.teacher_code, 'EMP-' || SUBSTRING(NEW.id::text, 1, 8)),
+        COALESCE(NEW.staff_unique_id, 'EMP-' || SUBSTRING(NEW.id::text, 1, 8)),
         NEW.full_name,
         COALESCE(NEW.department, 'Academics'),
         COALESCE(NEW.designation, 'Teacher'),
@@ -60,13 +60,13 @@ async function main() {
     $$ LANGUAGE plpgsql;
 
     -- Trigger for insert/update
-    DROP TRIGGER IF EXISTS trg_sync_teacher_to_staff_profile ON public.teachers;
+    DROP TRIGGER IF EXISTS trg_sync_teacher_to_staff_profile ON public.staff_records;
     CREATE TRIGGER trg_sync_teacher_to_staff_profile
-    AFTER INSERT OR UPDATE ON public.teachers
+    AFTER INSERT OR UPDATE ON public.staff_records
     FOR EACH ROW
     EXECUTE FUNCTION public.sync_teacher_to_staff_profile();
 
-    -- Function to sync delete from teachers to staff_profiles
+    -- Function to sync delete from staff_records to staff_profiles
     CREATE OR REPLACE FUNCTION public.delete_staff_profile_on_teacher_delete()
     RETURNS TRIGGER AS $$
     BEGIN
@@ -76,9 +76,9 @@ async function main() {
     $$ LANGUAGE plpgsql;
 
     -- Trigger for delete
-    DROP TRIGGER IF EXISTS trg_delete_staff_profile_on_teacher_delete ON public.teachers;
+    DROP TRIGGER IF EXISTS trg_delete_staff_profile_on_teacher_delete ON public.staff_records;
     CREATE TRIGGER trg_delete_staff_profile_on_teacher_delete
-    AFTER DELETE ON public.teachers
+    AFTER DELETE ON public.staff_records
     FOR EACH ROW
     EXECUTE FUNCTION public.delete_staff_profile_on_teacher_delete();
 

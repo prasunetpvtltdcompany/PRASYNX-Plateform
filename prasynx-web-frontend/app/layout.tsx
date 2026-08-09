@@ -12,6 +12,11 @@ export const metadata: Metadata = {
   title: 'Prasynx | Education Operating System',
   description: 'Empowering educational institutions with modern, secure, and efficient management solutions. Connect students, parents, teachers, and administrators on one unified platform.',
   metadataBase: new URL('https://prasynx.com'),
+  icons: {
+    icon: '/fav.png',
+    shortcut: '/fav.png',
+    apple: '/fav.png',
+  },
   openGraph: {
     title: 'Prasynx | Education Operating System',
     description: 'Empowering educational institutions with modern, secure, and efficient management solutions.',

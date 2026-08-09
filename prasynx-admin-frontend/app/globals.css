@@ -80,7 +80,7 @@ html { -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale; 
 @media (min-width: 1280px) { .sidebar-overlay { display: none; } }
 
 .sidebar-logo { @apply flex items-center gap-3 px-5 pt-5 pb-4 border-b border-[#F1F5F9]; }
-.sidebar-logo-icon { @apply w-9 h-9 rounded-xl flex items-center justify-center text-white font-extrabold text-base flex-shrink-0; background: linear-gradient(135deg, #6D4CFF, #8B5CF6); }
+.workspace-logo { @apply w-10 h-10 rounded-xl flex items-center justify-center text-white font-extrabold text-base flex-shrink-0; background: linear-gradient(135deg, #f1f0f4, #e8e7ea); }
 .sidebar-logo-text { @apply font-bold text-sm text-[#0F172A]; }
 .sidebar-logo-badge { @apply text-[9px] font-medium text-[#64748B] tracking-wide; }
 

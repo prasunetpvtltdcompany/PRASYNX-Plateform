@@ -147,13 +147,13 @@ export class RiskDetectionService {
   async analyzeAllStudents(orgId: string) {
     const { data: students } = await supabase
       .from('students')
-      .select('id, full_name, roll_number, student_class, section')
+      .select('id, full_name, roll_number, class_id, section_id, classes(name), sections(name)')
       .eq('organisation_id', orgId);
 
     if (!students) return { students: [], summary: { total: 0, atRisk: 0, critical: 0, high: 0, medium: 0, low: 0 } };
 
     const results = await Promise.allSettled(
-      students.map(s => this.analyzeStudent(orgId, s.id).then(r => ({ ...r, student: { id: s.id, fullName: s.full_name, rollNumber: s.roll_number, class: s.student_class, section: s.section } })))
+      students.map(s => this.analyzeStudent(orgId, s.id).then(r => ({ ...r, student: { id: s.id, fullName: s.full_name, rollNumber: s.roll_number, class: (s as any).classes?.name, section: (s as any).sections?.name } })))
     );
 
     const assessments = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<any>).value);
@@ -173,7 +173,7 @@ export class RiskDetectionService {
   async getAlerts(orgId: string, options?: { severity?: string; resolved?: boolean }) {
     let query = supabase
       .from('risk_alerts')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId);
 
     if (options?.severity) query = query.eq('severity', options.severity);

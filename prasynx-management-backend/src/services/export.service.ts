@@ -48,12 +48,12 @@ export class ExportService {
   }
 
   async exportStaff(orgId: string) {
-    const { data, error } = await supabase.from('teachers')
+    const { data, error } = await supabase.from('staff_records')
       .select('*').eq('organisation_id', orgId).order('full_name');
     if (error) throw new BadRequestError(error.message);
     return { rows: data || [], columns: [
       { key: 'full_name', label: 'Name' },
-      { key: 'teacher_code', label: 'Code' },
+      { key: 'staff_unique_id', label: 'Code' },
       { key: 'email', label: 'Email' },
       { key: 'phone', label: 'Phone' },
       { key: 'staff_unique_id', label: 'Unique ID' },
@@ -63,7 +63,7 @@ export class ExportService {
 
   async exportHomework(orgId: string) {
     const { data, error } = await supabase.from('homework')
-      .select('*, class:classes(name), subject:subjects(name), teacher:teachers(full_name)')
+      .select('*, class:classes(name), subject:subjects(name), teacher:staff_records(full_name)')
       .eq('organisation_id', orgId).order('due_date', { ascending: false });
     if (error) throw new BadRequestError(error.message);
     return { rows: (data || []).map((r: any) => ({
@@ -130,8 +130,8 @@ export class ExportService {
 
   async exportTeacherAssignments(orgId: string) {
     const { data, error } = await supabase.from('class_subject_teacher_map')
-      .select('*, class:classes(name), subject:subjects(name), teacher:teachers(full_name)')
-      .eq('organisation_id', orgId);
+      .select('*, class:classes!inner(id, name, organisation_id), subject:subjects(name), teacher:staff_records(full_name)')
+      .eq('class.organisation_id', orgId);
     if (error) throw new BadRequestError(error.message);
     return { rows: (data || []).map((r: any) => ({
       class_name: r.class?.name, subject_name: r.subject?.name,

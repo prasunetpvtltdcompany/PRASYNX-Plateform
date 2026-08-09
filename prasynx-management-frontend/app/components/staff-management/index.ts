@@ -15,7 +15,6 @@ export { WorkforceWorkAssignments } from './WorkforceWorkAssignments';
 export { WorkforceAcademicAssignments } from './WorkforceAcademicAssignments';
 export { WorkforceLeaveManagement } from './WorkforceLeaveManagement';
 export { WorkforcePerformance } from './WorkforcePerformance';
-export { WorkforceTaskManagement } from './WorkforceTaskManagement';
 export { WorkforceDocuments } from './WorkforceDocuments';
 export { WorkforceCommunication } from './WorkforceCommunication';
 export { WorkforceRolesPermissions } from './WorkforceRolesPermissions';

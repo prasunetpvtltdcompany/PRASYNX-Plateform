@@ -34,7 +34,7 @@ export class AuthService {
     }
 
     const { data: teacher, error: teacherError } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*')
       .eq('user_id', user.id)
       .eq('organisation_id', user.organisation_id)

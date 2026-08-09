@@ -63,5 +63,12 @@ function getFlag(code: LanguageCode): string {
     case 'bn': return '🇮🇳';
     case 'mr': return '🇮🇳';
     case 'gu': return '🇮🇳';
+    case 'kn': return '🇮🇳';
+    case 'ml': return '🇮🇳';
+    case 'pa': return '🇮🇳';
+    case 'or': return '🇮🇳';
+    case 'ur': return '🇮🇳';
+    case 'as': return '🇮🇳';
+    default: return '🌐';
   }
 }

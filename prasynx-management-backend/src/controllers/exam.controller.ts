@@ -121,6 +121,12 @@ export class ExamController {
     sendSuccess(res, result, 'Results locked');
   }
 
+  async unlockResults(req: AuthRequest, res: Response) {
+    const { exam_id } = req.params;
+    const result = await examService.unlockResults(exam_id);
+    sendSuccess(res, result, 'Results unlocked');
+  }
+
   async getStudentPerformance(req: AuthRequest, res: Response) {
     const { organisation_id, student_id } = req.params;
     const result = await examService.getStudentPerformance(organisation_id, student_id);

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -13,17 +14,17 @@ import {
 } from 'lucide-react';
 
 const TABS = [
-  { key: 'postings', label: 'Job Postings', icon: Briefcase },
-  { key: 'applicants', label: 'Applicants', icon: Users },
-  { key: 'pipeline', label: 'Hiring Pipeline', icon: GitPullRequest },
+  { key: 'postings', labelKey: 'mod.jobPostings', icon: Briefcase },
+  { key: 'applicants', labelKey: 'mod.applicants', icon: Users },
+  { key: 'pipeline', labelKey: 'mod.hiringPipeline', icon: GitPullRequest },
 ];
 
 const PIPELINE_STAGES = [
-  { key: 'applied', label: 'Applied', color: 'bg-blue-500' },
-  { key: 'screening', label: 'Screening', color: 'bg-indigo-500' },
-  { key: 'interview', label: 'Interview', color: 'bg-purple-500' },
-  { key: 'offer', label: 'Offer', color: 'bg-amber-500' },
-  { key: 'hired', label: 'Hired', color: 'bg-emerald-500' },
+  { key: 'applied', labelKey: 'mod.applied', color: 'bg-blue-500' },
+  { key: 'screening', labelKey: 'mod.screening', color: 'bg-indigo-500' },
+  { key: 'interview', labelKey: 'mod.interview', color: 'bg-purple-500' },
+  { key: 'offer', labelKey: 'mod.offer', color: 'bg-amber-500' },
+  { key: 'hired', labelKey: 'mod.hired', color: 'bg-emerald-500' },
 ];
 
 function getStatusBadge(status: string, variant: 'posting' | 'applicant' = 'posting') {
@@ -50,6 +51,7 @@ function formatDate(d: string) {
 }
 
 export function StaffRecruitment() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('postings');
   const [search, setSearch] = useState('');
   const [showAddPosting, setShowAddPosting] = useState(false);
@@ -106,7 +108,7 @@ export function StaffRecruitment() {
   return (
     <div>
       <div className="page-header">
-        <h1>Staff Recruitment</h1>
+        <h1>{t('mod.staffRecruitment')}</h1>
         <p>Manage job postings, applicants, and the hiring pipeline</p>
       </div>
 
@@ -117,7 +119,7 @@ export function StaffRecruitment() {
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
-              <tab.icon size={14} /> {tab.label}
+              <tab.icon size={14} /> {t(tab.labelKey)}
             </button>
           ))}
         </div>
@@ -265,7 +267,7 @@ export function StaffRecruitment() {
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div className={`w-2.5 h-2.5 rounded-full ${stage.color}`} />
-                        <h3 className="text-xs font-bold text-gray-800">{stage.label}</h3>
+                        <h3 className="text-xs font-bold text-gray-800">{t(stage.labelKey)}</h3>
                       </div>
                       <span className="text-lg font-extrabold text-gray-900">{pipelineCounts[stage.key] || 0}</span>
                     </div>

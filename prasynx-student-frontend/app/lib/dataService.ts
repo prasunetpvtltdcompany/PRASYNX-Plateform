@@ -121,6 +121,10 @@ export const healthApi = {
     apiClient.post<any>('/student/health/checkups', data),
   createMedication: (data: any) =>
     apiClient.post<any>('/student/health/medications', data),
+  createVaccination: (data: any) =>
+    apiClient.post<any>('/student/health/vaccinations', data),
+  createEmergencyContact: (data: any) =>
+    apiClient.post<any>('/student/health/emergency', data),
   logMood: (data: any) =>
     apiClient.post<any>('/student/health/mood', data),
 };

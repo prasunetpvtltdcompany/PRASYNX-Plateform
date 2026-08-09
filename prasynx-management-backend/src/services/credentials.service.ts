@@ -41,7 +41,7 @@ export class CredentialsService {
   async getCertificates(orgId: string) {
     const { data, error } = await supabase
       .from('digital_certificates')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId)
       .order('issued_date', { ascending: false });
     if (error) throw error;
@@ -80,7 +80,7 @@ export class CredentialsService {
   async getCredentials(orgId: string) {
     const { data, error } = await supabase
       .from('verifiable_credentials')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId)
       .order('issued_date', { ascending: false });
     if (error) throw error;
@@ -106,7 +106,7 @@ export class CredentialsService {
   async getTranscripts(orgId: string) {
     const { data, error } = await supabase
       .from('academic_transcripts')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId)
       .order('issued_date', { ascending: false });
     if (error) throw error;
@@ -128,7 +128,7 @@ export class CredentialsService {
   async getBadges(orgId: string) {
     const { data, error } = await supabase
       .from('skill_badges')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('organisation_id', orgId)
       .order('issued_date', { ascending: false });
     if (error) throw error;
@@ -152,7 +152,7 @@ export class CredentialsService {
   async verifyCertificate(hash: string) {
     const { data, error } = await supabase
       .from('digital_certificates')
-      .select('*, student:students(full_name, roll_number, student_class)')
+      .select('*, student:students(full_name, roll_number, class_id, classes(name))')
       .eq('blockchain_hash', hash)
       .maybeSingle();
     if (error) throw error;

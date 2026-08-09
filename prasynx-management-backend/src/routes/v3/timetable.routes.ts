@@ -15,10 +15,10 @@ router.get('/timetable/staff-overview/:org_id', async (req: Request, res: Respon
   try {
     const [entriesRes, teachersRes] = await Promise.all([
       supabase.from('timetable_entries')
-        .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+        .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
         .eq('organisation_id', req.params.org_id)
         .order('day_of_week').order('start_time'),
-      supabase.from('teachers').select('id, full_name, subject, email, phone')
+      supabase.from('staff_records').select('id, full_name, subject, email, phone')
         .eq('organisation_id', req.params.org_id).eq('status', 'active')
     ]);
     if (entriesRes.error) throw entriesRes.error;
@@ -29,7 +29,7 @@ router.get('/timetable/staff-overview/:org_id', async (req: Request, res: Respon
 
 router.get('/timetable/teachers-list/:org_id', async (req: Request, res: Response) => {
   try {
-    const { data, error } = await supabase.from('teachers')
+    const { data, error } = await supabase.from('staff_records')
       .select('id, full_name, subject, email')
       .eq('organisation_id', req.params.org_id).eq('status', 'active');
     if (error) throw error;
@@ -61,7 +61,7 @@ router.get('/timetable', async (req: Request, res: Response) => {
   try {
     let query = supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
       .order('day_of_week').order('start_time');
     if (organisation_id) query = query.eq('organisation_id', organisation_id as string);
     if (class_id) query = query.eq('class_id', class_id as string);
@@ -76,7 +76,7 @@ router.get('/timetable/class/:class_id', async (req: Request, res: Response) => 
   try {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
       .eq('class_id', req.params.class_id)
       .order('day_of_week').order('start_time');
     if (error) throw error;
@@ -88,7 +88,7 @@ router.get('/timetable/teacher/:teacher_id', async (req: Request, res: Response)
   try {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teacher:teachers(*), subject:subjects(*), class:classes(*)')
+      .select('*, teacher:staff_records(*), subject:subjects(*), class:classes(*)')
       .eq('teacher_id', req.params.teacher_id)
       .order('day_of_week').order('start_time');
     if (error) throw error;
@@ -154,7 +154,7 @@ router.get('/timetable/check-conflicts', async (req: Request, res: Response) => 
   try {
     let query = supabase
       .from('timetable_entries')
-      .select('id, class_id, start_time, end_time, teacher:teachers(full_name), class:classes(name, section)')
+      .select('id, class_id, start_time, end_time, teacher:staff_records(full_name), class:classes(name, section)')
       .eq('teacher_id', teacher_id as string)
       .eq('day_of_week', parseInt(day_of_week as string))
       .or(`start_time.lt.${end_time},end_time.gt.${start_time}`);

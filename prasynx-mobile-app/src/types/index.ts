@@ -43,7 +43,7 @@ export interface Staff {
   user_id: string;
   organisation_id: string;
   full_name: string;
-  teacher_code: string;
+  staff_unique_id: string;
   subject?: string;
   phone?: string;
   avatar?: string;

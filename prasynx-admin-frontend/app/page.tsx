@@ -478,7 +478,7 @@ export default function AdminPage() {
                 Platform Administration
               </div>
               <h1 className="hero-title text-2xl md:text-3xl xl:text-4xl font-extrabold text-white mb-2 leading-tight tracking-tight">
-                Welcome back, Prasunet
+                Welcome back, Prasynx
               </h1>
               <p className="hero-desc text-xs md:text-sm text-white/80 max-w-2xl leading-relaxed mb-4">
                 Manage organizations, credentials, analytics, users, and platform operations from one intelligent administration platform.
@@ -1835,7 +1835,9 @@ export default function AdminPage() {
       {/* SIDEBAR */}
       <aside className={`sidebar ${sidebarOpen ? 'open' : ''}`}>
         <div className="sidebar-logo">
-          <div className="sidebar-logo-icon">P</div>
+          <div className="workspace-logo">
+  <img src="/icons/fav.png" alt="Logo" />
+</div>
           <div><div className="sidebar-logo-text">Prasynx</div><div className="sidebar-logo-badge">Admin Portal</div></div>
         </div>
         <nav className="sidebar-nav">

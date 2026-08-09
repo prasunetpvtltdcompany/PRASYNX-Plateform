@@ -96,7 +96,7 @@ export function ProfileDashboard({ darkMode, setActiveTab, session, classes = []
               <p className="text-sm text-purple-100/90">{teacher.subject || user.role || 'Staff'}</p>
               <div className="flex items-center gap-3 mt-2 text-[11px] text-purple-200">
                 <span className="flex items-center gap-1"><Mail size={11} />{user.email || '—'}</span>
-                {teacher.teacher_code && <span className="flex items-center gap-1"><Award size={11} />ID: {teacher.teacher_code}</span>}
+                {teacher.staff_unique_id && <span className="flex items-center gap-1"><Award size={11} />ID: {teacher.staff_unique_id}</span>}
               </div>
             </div>
           </div>
@@ -159,7 +159,7 @@ export function ProfileDashboard({ darkMode, setActiveTab, session, classes = []
                   { label: 'Full Name', value: user.full_name || '—', icon: UserCircle },
                   { label: 'Email Address', value: user.email || '—', icon: Mail },
                   { label: 'Phone', value: (teacher as any)?.phone || user.phone || '—', icon: Phone },
-                  { label: 'Employee ID', value: teacher.teacher_code || '—', icon: Award },
+                  { label: 'Employee ID', value: teacher.staff_unique_id || '—', icon: Award },
                   { label: 'Subject', value: teacher.subject || '—', icon: BookOpen },
                   { label: 'Role', value: user.role || 'Teacher', icon: UserCircle },
                 ].map((f, i) => {

@@ -52,8 +52,8 @@ export interface Student {
   organisation_id: string;
   full_name: string;
   roll_number: string;
-  student_class?: string;
-  section?: string;
+  class_id?: string;
+  section_id?: string;
   phone?: string;
   parent_email?: string;
   parent_phone?: string;
@@ -66,7 +66,7 @@ export interface Staff {
   user_id: string;
   organisation_id: string;
   full_name: string;
-  teacher_code: string;
+  staff_unique_id: string;
   subject?: string;
   phone?: string;
   status: string;

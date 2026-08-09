@@ -1,7 +1,7 @@
 {
-  "name": "Prasunet Management Portal",
-  "short_name": "Prasunet",
-  "description": "Management portal for Prasunet Education Platform",
+  "name": "Prasynx Management Portal",
+  "short_name": "Prasynx",
+  "description": "Management portal for Prasynx Education Platform",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",
@@ -9,15 +9,9 @@
   "orientation": "portrait-primary",
   "icons": [
     {
-      "src": "/icons/icon-192.svg",
-      "sizes": "192x192",
-      "type": "image/svg+xml",
-      "purpose": "any maskable"
-    },
-    {
-      "src": "/icons/icon-512.svg",
+      "src": "/icons/fav.png",
       "sizes": "512x512",
-      "type": "image/svg+xml",
+      "type": "image/png",
       "purpose": "any maskable"
     }
   ]

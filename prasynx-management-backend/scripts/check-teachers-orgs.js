@@ -11,7 +11,7 @@ async function main() {
   console.log('Organisations:');
   orgs.rows.forEach(r => console.log(`  - ${r.id}: ${r.name}`));
 
-  const teachers = await client.query('SELECT id, full_name, organisation_id FROM public.teachers LIMIT 5');
+  const teachers = await client.query('SELECT id, full_name, organisation_id FROM public.staff_records LIMIT 5');
   console.log('Teachers:');
   teachers.rows.forEach(r => console.log(`  - ${r.id}: ${r.full_name} (org: ${r.organisation_id})`));
 

@@ -131,14 +131,14 @@ export class TransportService {
 
     const routeList = routes || [];
     const { data: vehicles } = await supabase.from('transport_vehicles').select('id, vehicle_number, route_id').eq('organisation_id', orgId);
-    const { data: assignments } = await supabase.from('transport_assignments').select('route_id, count').eq('organisation_id', orgId);
+    const { data: assignments } = await supabase.from('transport_assignments').select('route_id').eq('organisation_id', orgId);
 
     const vehicleMap: any = {};
     (vehicles || []).forEach((v: any) => { vehicleMap[v.route_id] = v; });
 
     const assignmentCounts: any = {};
     (assignments || []).forEach((a: any) => {
-      assignmentCounts[a.route_id] = (assignmentCounts[a.route_id] || 0) + 1;
+      if (a.route_id) assignmentCounts[a.route_id] = (assignmentCounts[a.route_id] || 0) + 1;
     });
 
     return routeList.map((r: any) => ({

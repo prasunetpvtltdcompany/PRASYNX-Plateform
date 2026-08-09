@@ -57,7 +57,7 @@ export class AuthService {
       const teacherIds = [...new Set(cstm?.map(t => t.teacher_id) || [])];
       if (teacherIds.length > 0) {
         const { data: tData } = await supabase
-          .from('teachers')
+          .from('staff_records')
           .select('*')
           .in('id', teacherIds);
         teachers = tData || [];

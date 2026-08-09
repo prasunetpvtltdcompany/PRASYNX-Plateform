@@ -8,8 +8,7 @@ import apiClient from './lib/apiClient';
 import { useNotifications } from './lib/useNotifications';
 import { useApi } from './lib/useApi';
 import {
-  dashboardApi, classApi, studentApi, announcementApi,
-  timetableApi, assignmentApi, examApi, messageApi, qrApi, partTimeJobApi, staffApi, teacherApi
+  announcementApi, timetableApi, messageApi, staffApi, teacherApi
 } from './lib/dataService';
 import { workforceApi } from './lib/enterpriseDataService';
 import { createClient } from './lib/supabase';
@@ -45,46 +44,6 @@ import {
 } from './components/teacher/TeacherWorkspace';
 import { TeacherAttendanceView } from './components/attendance/TeacherAttendanceView';
 import { TeacherStudentAttendanceView } from './components/teacher/TeacherAttendanceView';
-
-import { StaffDirectory } from './components/staff-management/StaffDirectory';
-import { StaffAttendance } from './components/staff-management/StaffAttendance';
-import { WorkAssignments } from './components/staff-management/WorkAssignments';
-import { Departments } from './components/staff-management/Departments';
-import { Designations } from './components/staff-management/Designations';
-import { AcademicAssignments } from './components/staff-management/AcademicAssignments';
-import { PerformanceManagement } from './components/staff-management/PerformanceManagement';
-import { LeaveManagement } from './components/staff-management/LeaveManagement';
-import { TaskManagement } from './components/staff-management/TaskManagement';
-import { TrainingCertifications } from './components/staff-management/TrainingCertifications';
-import { StaffDocuments } from './components/staff-management/StaffDocuments';
-import { PayrollOverview } from './components/staff-management/PayrollOverview';
-import { CommunicationCenter } from './components/staff-management/CommunicationCenter';
-import { StaffAnalytics } from './components/staff-management/StaffAnalytics';
-import { RolesPermissions } from './components/staff-management/RolesPermissions';
-import { StaffRequests } from './components/staff-management/StaffRequests';
-import { StaffLifecycle } from './components/staff-management/StaffLifecycle';
-import { StaffSettings } from './components/staff-management/StaffSettings';
-import { TimetableAssignments } from './components/staff-management/TimetableAssignments';
-
-interface NavItem {
-  key: string;
-  label: string;
-  icon: LucideIcon;
-  badge?: string;
-}
-
-const sidebarSections: { label: string; items: NavItem[] }[] = [
-  {
-    label: 'Main Menu',
-    items: [
-      { key: 'self', label: 'Self Dashboard', icon: LayoutDashboard },
-      { key: 'students', label: 'Student Management', icon: Users },
-      { key: 'parents', label: 'Parent Management', icon: MessageSquare },
-    ]
-  },
-];
-
-const COLORS = { primary: '#7C3AED', success: '#10B981', warning: '#F59E0B', danger: '#EF4444', info: '#3B82F6' };
 
 type Workspace = 'self' | 'students' | 'parents';
 
@@ -164,14 +123,9 @@ export default function StaffPage() {
   const userId = validUuid(session?.user?.id) ? session!.user!.id : null;
   const isTeacher = session?.user?.role === 'teacher';
 
-  const dash = useApi(() => dashboardApi.getStats(teacherId), [teacherId], !!teacherId);
-  const classesHook = useApi(() => classApi.getByTeacher(teacherId), [teacherId], false);
-  const studentsHook = useApi(() => studentApi.getByTeacher(teacherId), [teacherId], false);
   const announcementsHook = useApi(() => announcementApi.getAll(orgId), [orgId], false);
   const { notifications: notifList, unread: notifUnread, markAsRead: markNotifRead, markAllAsRead: markAllNotifRead } = useNotifications();
   const timetableHook = useApi(() => timetableApi.getByTeacher(teacherId), [teacherId], false);
-  const assignmentsHook = useApi(() => assignmentApi.getByTeacher(teacherId), [teacherId], false);
-  const examsHook = useApi(() => examApi.getAll(orgId), [orgId], false);
   const conversationsHook = useApi(() => messageApi.getConversations(userId), [userId], false);
   const workTasksHook = useApi(() => staffApi.getTasks(teacherId!), [teacherId], !!teacherId);
 
@@ -191,7 +145,6 @@ export default function StaffPage() {
   const teacherActivityLogsHook = useApi(() => teacherApi.getActivityLogs(teacherId!), [teacherId], !!teacherId && isTeacher);
 
   const [studentSubTab, setStudentSubTab] = useState('overview');
-  const [parentSubTab, setParentSubTab] = useState('overview');
   const [showCreateHomeworkModal, setShowCreateHomeworkModal] = useState(false);
   const [homeworkForm, setHomeworkForm] = useState({ title: '', description: '', class_name: '', subject_name: '', due_date: '' });
   const [showViewSubmissionsModal, setShowViewSubmissionsModal] = useState(false);
@@ -220,17 +173,6 @@ export default function StaffPage() {
   const [attendanceList, setAttendanceList] = useState<Record<string, 'PRESENT' | 'ABSENT'>>({});
   const [attendanceRemarks, setAttendanceRemarks] = useState<Record<string, string>>({});
   const [smsAlertLoading, setSmsAlertLoading] = useState(false);
-  const [showAnnounceModal, setShowAnnounceModal] = useState(false);
-  const [showAssignModal, setShowAssignModal] = useState(false);
-  const [showGradeModal, setShowGradeModal] = useState(false);
-  const [showExamModal, setShowExamModal] = useState(false);
-  const [showQRModal, setShowQRModal] = useState(false);
-  const [qrData, setQrData] = useState<any>(null);
-  const [profileTab, setProfileTab] = useState('overview');
-  const [announceForm, setAnnounceForm] = useState({ title: '', content: '', priority: 'normal' });
-  const [assignForm, setAssignForm] = useState({ title: '', subject: '', due_date: '', class_id: '', description: '' });
-  const [gradeForm, setGradeForm] = useState({ student_id: '', subject: '', score: 0, grade: '', exam_type: '' });
-  const [examForm, setExamForm] = useState({ title: '', subject: '', date: '', time: '', duration: '', total_marks: 100 });
   const [selectedContact, setSelectedContact] = useState<any>(null);
   const [messageText, setMessageText] = useState('');
   const [chatMessages, setChatMessages] = useState<any[]>([]);
@@ -238,15 +180,9 @@ export default function StaffPage() {
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
   const notifRef = useRef<HTMLDivElement>(null);
 
-  const classes = Array.isArray(classesHook.data?.data) ? classesHook.data.data : Array.isArray(classesHook.data) ? classesHook.data : [];
-  const students = Array.isArray(studentsHook.data?.students) ? studentsHook.data.students : Array.isArray(studentsHook.data) ? studentsHook.data : [];
   const announcements = Array.isArray(announcementsHook.data?.announcements) ? announcementsHook.data.announcements : Array.isArray(announcementsHook.data) ? announcementsHook.data : [];
   const timetable = Array.isArray(timetableHook.data?.data) ? timetableHook.data.data : Array.isArray(timetableHook.data) ? timetableHook.data : [];
-  const assignments = Array.isArray(assignmentsHook.data?.assignments) ? assignmentsHook.data.assignments : Array.isArray(assignmentsHook.data) ? assignmentsHook.data : [];
-  const exams = Array.isArray(examsHook.data?.exams) ? examsHook.data.exams : Array.isArray(examsHook.data) ? examsHook.data : [];
   const conversations = Array.isArray(conversationsHook.data?.conversations) ? conversationsHook.data.conversations : Array.isArray(conversationsHook.data) ? conversationsHook.data : [];
-
-  const dashData = dash.data as any;
   const userInitials = session?.user?.full_name
     ? session.user.full_name.split(' ').map((n: string) => n[0]).join('').toUpperCase().slice(0, 2) : 'S';
 
@@ -340,14 +276,6 @@ export default function StaffPage() {
     } catch { toast.error('Failed to send message'); }
   };
 
-  const submitAnnouncement = async () => { /* ... keep existing ... */ };
-  const submitAssignment = async () => { /* ... keep existing ... */ };
-  const submitGrade = async () => { /* ... keep existing ... */ };
-  const submitExam = async () => { /* ... keep existing ... */ };
-  const generateQR = async () => { /* ... keep existing ... */ };
-  const loadStudentGrades = async (sid: string) => { /* ... keep existing ... */ };
-  const loadStudentAttendance = async (sid: string) => { /* ... keep existing ... */ };
-
   if (!session) {
     return (
       <div className="flex h-dvh overflow-hidden bg-white">
@@ -427,7 +355,9 @@ export default function StaffPage() {
 
       {/* PANEL 1: Workspace Switcher Rail */}
       <div className={`workspace-rail ${sidebarOpen ? 'open' : ''}`}>
-        <div className="workspace-logo">P</div>
+        <div className="workspace-logo">
+  <img src="/icons/fav.png" alt="Logo" />
+</div>
         <div className="flex flex-col items-center gap-1 flex-1 px-1">
           {(['self', 'students', 'parents'] as Workspace[]).map((ws) => {
             const cfg = workspaceConfig[ws];
@@ -436,17 +366,12 @@ export default function StaffPage() {
             return (
               <button key={ws} onClick={() => { setWorkspace(ws); setWorkspaceView('overview'); setSidebarOpen(false); }}
                 className={`workspace-btn ${isActive ? 'active' : ''}`}>
-                <div className="workspace-btn-indicator" />
+        
                 <div className="workspace-btn-icon"><Icon size={20} /></div>
                 <span className="workspace-btn-label">{cfg.label}</span>
               </button>
             );
           })}
-        </div>
-        <div className="pb-4 flex flex-col items-center">
-          <button onClick={logout} className="workspace-btn-icon hover:!bg-red-50 hover:!text-red-500 !rounded-xl cursor-pointer">
-            <LogOut size={18} />
-          </button>
         </div>
       </div>
 
@@ -578,7 +503,7 @@ export default function StaffPage() {
                 timetable={timetable} teacherAttendanceHook={teacherAttendanceHook}
                 announcementsHook={announcementsHook} conversationsHook={conversationsHook}
                 teacherNotificationsHook={teacherNotificationsHook} teacherPerformanceHook={teacherPerformanceHook}
-                teacherActivityLogsHook={teacherActivityLogsHook} teacherId={teacherId} userId={userId} />}
+                teacherActivityLogsHook={teacherActivityLogsHook} teacherId={teacherId} userId={userId} orgId={orgId} />}
               {workspace === 'students' && (
                 <StudentsView
                   view={workspaceView} setView={setWorkspaceView}
@@ -663,30 +588,8 @@ function SelfDashboard(props: any) {
           setShowParentCommModal={() => {}} generateQR={() => {}} />}
         {st === 'profile' && <ProfileView session={props.session} />}
         {st === 'attendance' && <TeacherAttendanceView teacherAttendanceHook={props.teacherAttendanceHook} session={props.session} teacherStats={props.teacherStats} />}
-        {st === 'leave' && <TeacherLeaveView teacherId={props.teacherId} teacherStats={props.teacherStats} />}
-        {st === 'salary' && (
-          <Card className="bg-white border border-gray-150/85 shadow-sm p-5">
-            <div className="flex items-center gap-2 mb-4"><DollarSign size={16} className="text-emerald-600" /><h3 className="text-xs font-semibold text-gray-700">Salary & Payslips</h3></div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              <div className="p-3 rounded-lg bg-emerald-50"><div className="text-[9px] text-emerald-600 font-semibold uppercase">Net Salary</div><div className="text-lg font-bold text-gray-900 mt-0.5">₹42,500</div></div>
-              <div className="p-3 rounded-lg bg-blue-50"><div className="text-[9px] text-blue-600 font-semibold uppercase">Allowances</div><div className="text-lg font-bold text-gray-900 mt-0.5">₹12,000</div></div>
-              <div className="p-3 rounded-lg bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Deductions</div><div className="text-lg font-bold text-gray-900 mt-0.5">₹5,200</div></div>
-              <div className="p-3 rounded-lg bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Next Pay</div><div className="text-lg font-bold text-gray-900 mt-0.5">01 Jul 2026</div></div>
-            </div>
-            <div className="space-y-2">
-              {['Jan 2026', 'Feb 2026', 'Mar 2026', 'Apr 2026', 'May 2026', 'Jun 2026'].map((m, i) => (
-                <div key={i} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50 cursor-pointer">
-                  <div className="text-xs font-semibold text-gray-700">{m}</div>
-                  <div className="flex items-center gap-3">
-                    <span className="text-xs text-gray-500">₹42,500</span>
-                    <Badge className="text-[9px] font-medium bg-green-50 text-green-700">Paid</Badge>
-                    <Download size={13} className="text-gray-400" />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Card>
-        )}
+        {st === 'leave' && <TeacherLeaveView teacherId={props.teacherId} orgId={props.orgId} />}
+        {st === 'salary' && <StaffSalaryView staffId={props.teacherId} orgId={props.orgId} />}
         {st === 'timetable' && (
           <Card className="bg-white border border-gray-150/85 shadow-sm overflow-hidden">
             <div className="flex items-center gap-2 px-4 py-3 border-b border-gray-100"><CalendarDays size={14} className="text-indigo-600" /><h3 className="text-xs font-semibold text-gray-700">My Timetable</h3></div>
@@ -761,15 +664,18 @@ function StudentsView(props: any) {
                 <th className="py-2 px-3 text-left">Student</th><th className="py-2 px-3 text-center">Class</th><th className="py-2 px-3 text-center">Avg Marks</th><th className="py-2 px-3 text-center">Grade</th><th className="py-2 px-3 text-center">Status</th>
               </tr></thead>
               <tbody>
-                {(props.teacherStudents || []).slice(0, 10).map((s: any, i: number) => (
+                {(props.teacherStudents || []).slice(0, 10).map((s: any, i: number) => {
+                  const avgMarks = s.average_marks ?? s.avg_marks;
+                  const grade = avgMarks == null ? '—' : avgMarks >= 90 ? 'A' : avgMarks >= 75 ? 'B' : avgMarks >= 60 ? 'C' : 'D';
+                  return (
                   <tr key={s.id || i} className="border-b hover:bg-gray-50/30">
                     <td className="py-2 px-3 font-semibold text-gray-800">{s.full_name || s.name}</td>
                     <td className="py-2 px-3 text-center text-gray-500">Grade {s.class_name || '—'}</td>
-                    <td className="py-2 px-3 text-center font-bold text-indigo-700">{s.average_marks || 85}%</td>
-                    <td className="py-2 px-3 text-center font-bold text-emerald-600">{(s.average_marks || 85) >= 90 ? 'A' : (s.average_marks || 85) >= 75 ? 'B' : (s.average_marks || 85) >= 60 ? 'C' : 'D'}</td>
-                    <td className="py-2 px-3 text-center"><Badge className={`text-[9px] font-medium ${(s.average_marks || 85) >= 75 ? 'bg-green-50 text-green-700' : 'bg-purple-50 text-purple-700'}`}>{(s.average_marks || 85) >= 75 ? 'Pass' : 'Needs Improvement'}</Badge></td>
+                    <td className="py-2 px-3 text-center font-bold text-indigo-700">{avgMarks != null ? `${avgMarks}%` : '—'}</td>
+                    <td className="py-2 px-3 text-center font-bold text-emerald-600">{grade}</td>
+                    <td className="py-2 px-3 text-center"><Badge className={`text-[9px] font-medium ${avgMarks == null ? 'bg-gray-50 text-gray-500' : avgMarks >= 75 ? 'bg-green-50 text-green-700' : 'bg-purple-50 text-purple-700'}`}>{avgMarks == null ? 'No data' : avgMarks >= 75 ? 'Pass' : 'Needs Improvement'}</Badge></td>
                   </tr>
-                ))}
+                );})}
               </tbody>
             </table>
           </div>
@@ -795,7 +701,7 @@ function StudentsView(props: any) {
                   <span className="text-xs font-semibold text-gray-800">{s.full_name || s.name}</span>
                   <Badge className="text-[9px] font-medium bg-indigo-50 text-indigo-700">Report</Badge>
                 </div>
-                <div className="text-[10px] text-gray-400">Grade {s.class_name || '—'} · {(s.average_marks || 85)}% avg</div>
+                <div className="text-[10px] text-gray-400">Grade {s.class_name || '—'} · {s.average_marks ?? s.avg_marks ?? '—'}{s.average_marks != null || s.avg_marks != null ? '% avg' : ''}</div>
                 <div className="mt-2 flex gap-1">
                   <button className="text-[9px] px-2 py-1 rounded bg-indigo-50 text-indigo-700 font-semibold hover:bg-indigo-100">Download</button>
                   <button className="text-[9px] px-2 py-1 rounded bg-gray-50 text-gray-600 font-semibold hover:bg-gray-100">Share</button>
@@ -817,11 +723,15 @@ function StudentsView(props: any) {
         </Card>
       )}
       {subTab === 'analytics' && (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Avg Performance</div><div className="text-xl font-bold text-indigo-700 mt-1">85%</div><div className="text-[9px] text-gray-400 mt-1">Across all subjects</div></Card>
-          <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Attendance Rate</div><div className="text-xl font-bold text-emerald-600 mt-1">95%</div><div className="text-[9px] text-gray-400 mt-1">Class average</div></Card>
-          <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Homework Completion</div><div className="text-xl font-bold text-purple-600 mt-1">88%</div><div className="text-[9px] text-gray-400 mt-1">Submission rate</div></Card>
-        </div>
+        <Card className="bg-white border border-gray-150/85 shadow-sm p-5">
+          <div className="flex items-center gap-2 mb-4"><BarChart3 size={16} className="text-indigo-600" /><h3 className="text-xs font-semibold text-gray-700">Class Analytics</h3></div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Students</div><div className="text-xl font-bold text-indigo-700 mt-1">{(props.teacherStudents || []).length}</div></Card>
+            <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Classes</div><div className="text-xl font-bold text-emerald-600 mt-1">{(props.teacherClasses || []).length}</div></Card>
+            <Card className="p-4 bg-white border border-gray-150/80 shadow-sm"><div className="text-[10px] text-gray-400 font-semibold uppercase">Subjects</div><div className="text-xl font-bold text-purple-600 mt-1">{(props.teacherSubjects || []).length}</div></Card>
+          </div>
+          <p className="text-xs text-gray-400 mt-4">Detailed performance analytics will appear once marks and attendance data is recorded.</p>
+        </Card>
       )}
     </div>
   );
@@ -861,27 +771,89 @@ const lvFadeUp = { initial: { opacity: 0, y: 16 }, animate: { opacity: 1, y: 0 }
 const lvStagger = { animate: { transition: { staggerChildren: 0.05 } } };
 const lvMonths = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | null; teacherStats?: any }) {
+function StaffSalaryView({ staffId, orgId }: { staffId: string | null; orgId: string | null }) {
+  const payslipsHook = useApi(() => workforceApi.getPayslips(orgId!), [orgId], !!orgId);
+  const allPayslips = Array.isArray(payslipsHook.data?.data) ? payslipsHook.data.data
+    : Array.isArray(payslipsHook.data) ? payslipsHook.data : [];
+  const payslips = staffId ? allPayslips.filter((p: any) => p.staff_id === staffId) : [];
+  const latest = payslips[0];
+  const formatCurrency = (value?: number | null) => value != null ? `₹${Number(value).toLocaleString('en-IN')}` : '—';
+
+  if (payslipsHook.loading) {
+    return <div className="text-center py-12 text-gray-400 text-sm">Loading salary data...</div>;
+  }
+
+  return (
+    <Card className="bg-white border border-gray-150/85 shadow-sm p-5">
+      <div className="flex items-center gap-2 mb-4"><DollarSign size={16} className="text-emerald-600" /><h3 className="text-xs font-semibold text-gray-700">Salary & Payslips</h3></div>
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="p-3 rounded-lg bg-emerald-50"><div className="text-[9px] text-emerald-600 font-semibold uppercase">Latest Net Pay</div><div className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(latest?.net_pay)}</div></div>
+        <div className="p-3 rounded-lg bg-blue-50"><div className="text-[9px] text-blue-600 font-semibold uppercase">Gross Pay</div><div className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(latest?.gross_pay)}</div></div>
+        <div className="p-3 rounded-lg bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Deductions</div><div className="text-lg font-bold text-gray-900 mt-0.5">{formatCurrency(latest?.deductions)}</div></div>
+        <div className="p-3 rounded-lg bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Payslips</div><div className="text-lg font-bold text-gray-900 mt-0.5">{payslips.length}</div></div>
+      </div>
+      <div className="space-y-2">
+        {payslips.length > 0 ? payslips.map((p: any, i: number) => (
+          <div key={p.id || i} className="flex items-center justify-between p-3 rounded-lg border border-gray-100 hover:bg-gray-50">
+            <div className="text-xs font-semibold text-gray-700">{p.month} {p.year}</div>
+            <div className="flex items-center gap-3">
+              <span className="text-xs text-gray-500">{formatCurrency(p.net_pay)}</span>
+              <Badge className={`text-[9px] font-medium ${p.status === 'PAID' ? 'bg-green-50 text-green-700' : 'bg-purple-50 text-purple-700'}`}>{p.status || 'PENDING'}</Badge>
+            </div>
+          </div>
+        )) : (
+          <div className="text-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No payslips available yet</div>
+        )}
+      </div>
+    </Card>
+  );
+}
+
+function TeacherLeaveView({ teacherId, orgId }: { teacherId: string | null; orgId: string | null }) {
   const staffLeave = useApi(() => staffApi.getLeaves(teacherId!), [teacherId], !!teacherId);
+  const leaveBalanceHook = useApi(() => workforceApi.getLeaveBalance(orgId!, teacherId!), [orgId, teacherId], !!orgId && !!teacherId);
   const leavesList = Array.isArray(staffLeave.data?.leaves) ? staffLeave.data.leaves : Array.isArray(staffLeave.data) ? staffLeave.data : [];
-  const loading = staffLeave?.loading;
+  const balanceRows = Array.isArray(leaveBalanceHook.data?.data) ? leaveBalanceHook.data.data
+    : Array.isArray(leaveBalanceHook.data) ? leaveBalanceHook.data : [];
+  const loading = staffLeave?.loading || leaveBalanceHook?.loading;
   const [showApply, setShowApply] = useState(false);
   const [form, setForm] = useState({ type: 'SICK', start_date: '', end_date: '', reason: '' });
-  const submit = () => {
+  const submit = async () => {
+    if (!teacherId || !orgId) { toast.error('Session expired'); return; }
     if (!form.start_date || !form.end_date || !form.reason) { toast.error('Fill all fields'); return; }
-    toast.success('Leave submitted for approval');
-    setShowApply(false); setForm({ type: 'SICK', start_date: '', end_date: '', reason: '' });
+    try {
+      const res = await staffApi.addLeave(teacherId, {
+        leave_type: form.type,
+        from_date: form.start_date,
+        to_date: form.end_date,
+        reason: form.reason,
+      });
+      if (res.success) {
+        toast.success('Leave submitted for approval');
+        setShowApply(false);
+        setForm({ type: 'SICK', start_date: '', end_date: '', reason: '' });
+        staffLeave.refetch();
+        leaveBalanceHook.refetch();
+      } else {
+        toast.error(res.error || 'Failed to submit leave');
+      }
+    } catch {
+      toast.error('Failed to submit leave');
+    }
   };
 
-  const leaveBalance = [
-    { type: 'Casual Leave', icon: '🌴', used: 4, total: 12, color: '#10B981', bg: '#D1FAE5', remaining: 8 },
-    { type: 'Sick Leave', icon: '🏥', used: 2, total: 10, color: '#F59E0B', bg: '#FEF3C7', remaining: 8 },
-    { type: 'Earned Leave', icon: '🏖️', used: 8, total: 20, color: '#3B82F6', bg: '#DBEAFE', remaining: 12 },
-    { type: 'Comp Off', icon: '🎯', used: 1, total: 5, color: '#EC4899', bg: '#FCE7F3', remaining: 4 },
-  ];
+  const leaveBalance = balanceRows.map((row: any) => ({
+    type: row.leave_type || 'Leave',
+    icon: '🌴',
+    used: row.used_days || 0,
+    total: row.total_days || 0,
+    color: '#10B981',
+    bg: '#D1FAE5',
+    remaining: Math.max((row.total_days || 0) - (row.used_days || 0), 0),
+  }));
 
   const effectiveLeaves = leavesList.length > 0 ? leavesList : [];
-  const pct = (used: number, total: number) => Math.round(((total - used) / total) * 100);
+  const pct = (used: number, total: number) => total > 0 ? Math.round(((total - used) / total) * 100) : 0;
 
   if (loading) {
     return (
@@ -967,7 +939,7 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
 
       {/* LEAVE BALANCE CARDS */}
       <motion.div variants={lvFadeUp} className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {leaveBalance.map((item, i) => (
+        {leaveBalance.length > 0 ? leaveBalance.map((item, i) => (
           <div key={i} className="p-4 rounded-2xl bg-white border border-gray-100 shadow-sm">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: item.bg }}>
@@ -987,7 +959,9 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
               <span className="text-[9px] font-bold" style={{ color: item.color }}>{pct(item.used, item.total)}%</span>
             </div>
           </div>
-        ))}
+        )) : (
+          <div className="col-span-full text-center py-10 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No leave balance configured yet</div>
+        )}
       </motion.div>
 
       {/* LEAVE HISTORY */}
@@ -1021,7 +995,9 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
                     : s === 'pending' ? { bg: '#FEF3C7', color: '#92400E', text: 'Pending' }
                     : s === 'rejected' ? { bg: '#FEE2E2', color: '#991B1B', text: 'Rejected' }
                     : { bg: '#F3F4F6', color: '#374151', text: l.status };
-                  const days = l.days || (l.start_date && l.end_date ? Math.max(1, Math.ceil((new Date(l.end_date).getTime() - new Date(l.start_date).getTime()) / (1000 * 60 * 60 * 24)) + 1) : 1);
+                  const startDate = l.from_date || l.start_date;
+                  const endDate = l.to_date || l.end_date;
+                  const days = l.days || (startDate && endDate ? Math.max(1, Math.ceil((new Date(endDate).getTime() - new Date(startDate).getTime()) / (1000 * 60 * 60 * 24)) + 1) : 1);
                   return (
                     <motion.tr key={l.id || i} initial={{ opacity: 0, x: -5 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: i * 0.05 }}
                       className="border-b border-gray-50 hover:bg-gray-50/50 transition-colors">
@@ -1036,8 +1012,8 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
                           <span className="font-medium text-gray-900 text-xs">{l.leave_type || 'Leave'}</span>
                         </div>
                       </td>
-                      <td className="py-3 px-4 text-gray-600">{l.start_date || '—'}</td>
-                      <td className="py-3 px-4 text-gray-600">{l.end_date || '—'}</td>
+                      <td className="py-3 px-4 text-gray-600">{startDate || '—'}</td>
+                      <td className="py-3 px-4 text-gray-600">{endDate || '—'}</td>
                       <td className="py-3 px-3 text-center"><span className="font-extrabold text-gray-800">{days}</span></td>
                       <td className="py-3 px-5 md:px-6 text-right">
                         <span className="inline-flex px-2.5 py-1 rounded-lg text-[9px] font-bold" style={{ background: badge.bg, color: badge.color }}>{badge.text}</span>
@@ -1104,20 +1080,22 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
               </div>
             </div>
             <div className="space-y-3">
-              {leaveBalance.map((item, i) => (
+              {leaveBalance.length > 0 ? leaveBalance.map((item, i) => (
                 <div key={i} className="flex items-center gap-3">
                   <span className="text-xs font-semibold text-gray-600 w-24">{item.type}</span>
                   <div className="flex-1 h-3 rounded-full bg-gray-100 overflow-hidden relative">
-                    <motion.div initial={{ width: 0 }} animate={{ width: `${(item.used / item.total) * 100}%` }} transition={{ duration: 1, delay: i * 0.1 }}
+                    <motion.div initial={{ width: 0 }} animate={{ width: `${item.total > 0 ? (item.used / item.total) * 100 : 0}%` }} transition={{ duration: 1, delay: i * 0.1 }}
                       className="h-full rounded-full" style={{ background: item.color }} />
                   </div>
                   <span className="text-[10px] font-bold text-gray-500 w-12 text-right">{item.used}/{item.total}</span>
                 </div>
-              ))}
+              )) : (
+                <div className="text-center py-6 text-gray-400 text-xs">No leave balance data available</div>
+              )}
             </div>
             <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-xl bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Avg Leave/Year</div><div className="text-lg font-extrabold text-purple-700">8.5</div></div>
-              <div className="p-3 rounded-xl bg-green-50"><div className="text-[9px] text-green-600 font-semibold uppercase">Utilization</div><div className="text-lg font-extrabold text-green-700">{Math.round(leaveBalance.reduce((s, l) => s + l.used, 0) / leaveBalance.reduce((s, l) => s + l.total, 0) * 100)}%</div></div>
+              <div className="p-3 rounded-xl bg-purple-50"><div className="text-[9px] text-purple-600 font-semibold uppercase">Requests</div><div className="text-lg font-extrabold text-purple-700">{effectiveLeaves.length}</div></div>
+              <div className="p-3 rounded-xl bg-green-50"><div className="text-[9px] text-green-600 font-semibold uppercase">Utilization</div><div className="text-lg font-extrabold text-green-700">{leaveBalance.length > 0 ? Math.round(leaveBalance.reduce((s, l) => s + l.used, 0) / Math.max(leaveBalance.reduce((s, l) => s + l.total, 0), 1) * 100) : 0}%</div></div>
             </div>
           </Card>
         </motion.div>
@@ -1177,43 +1155,6 @@ function TeacherLeaveView({ teacherId, teacherStats }: { teacherId: string | nul
   );
 }
 
-function TeacherAnnouncementsView({ announcementsHook }: { announcementsHook: any }) {
-  const list = Array.isArray(announcementsHook.data?.announcements) ? announcementsHook.data.announcements : Array.isArray(announcementsHook.data) ? announcementsHook.data : [];
-  return (
-    <div className="space-y-2">
-      {list.length > 0 ? list.map((a: any, i: number) => (
-        <div key={a.id || i} className="p-4 rounded-xl bg-white border border-gray-100">
-          <div className="flex items-start gap-3">
-            <div className="w-2 h-2 rounded-full bg-indigo-500 mt-1.5" />
-            <div>
-              <div className="text-xs font-semibold text-gray-900">{a.title || a.name || 'Announcement'}</div>
-              <div className="text-[10px] text-gray-500 mt-0.5">{a.content || a.description || ''}</div>
-              <div className="text-[9px] text-gray-400 mt-1">{a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}</div>
-            </div>
-          </div>
-        </div>
-      )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No announcements</div>}
-    </div>
-  );
-}
-
-function TeacherTasksView({ tasks }: { tasks: any[] }) {
-  const list = tasks || [];
-  return (
-    <div className="space-y-2">
-      {list.length > 0 ? list.map((t: any, i: number) => (
-        <div key={t.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <CheckSquare size={16} className="text-gray-400" />
-            <div><div className="text-xs font-semibold text-gray-900">{t.title || t.name || 'Task'}</div><div className="text-[10px] text-gray-500">{t.description || ''}</div></div>
-          </div>
-          <Badge className={`text-[9px] font-medium ${t.status === 'completed' ? 'bg-green-50 text-green-700' : t.status === 'overdue' ? 'bg-red-50 text-red-700' : 'bg-purple-50 text-purple-700'}`}>{t.status || 'pending'}</Badge>
-        </div>
-      )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No tasks</div>}
-    </div>
-  );
-}
-
 function TeacherDocumentsView({ teacherId }: { teacherId: string | null }) {
   const staffDocs = useApi(() => staffApi.getDocuments(teacherId!), [teacherId], !!teacherId);
   const docsList = Array.isArray(staffDocs.data?.documents) ? staffDocs.data.documents : Array.isArray(staffDocs.data) ? staffDocs.data : [];
@@ -1225,25 +1166,6 @@ function TeacherDocumentsView({ teacherId }: { teacherId: string | null }) {
           <div className="text-[10px] text-gray-400">{d.type || d.document_type || ''}</div>
         </div>
       )) : <div className="col-span-full text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No documents</div>}
-    </div>
-  );
-}
-
-function TeacherPerformanceView({ teacherId, teacherPerformanceHook }: { teacherId: string | null; teacherPerformanceHook: any }) {
-  const perfData = teacherPerformanceHook?.data?.performance || teacherPerformanceHook?.data || {};
-  return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-      {[
-        { label: 'Attendance Score', value: perfData.attendance_score || perfData.attendance || '—', unit: '%' },
-        { label: 'Task Completion', value: perfData.task_completion || perfData.tasks || '—', unit: '%' },
-        { label: 'Overall Score', value: perfData.score || perfData.rating || '—', unit: '/100' },
-        { label: 'Homework Completion', value: perfData.homework_completion || '—', unit: '%' },
-      ].map((p, i) => (
-        <div key={i} className="p-4 rounded-xl bg-white border border-gray-100 text-center">
-          <div className="text-[10px] text-gray-400 uppercase font-semibold">{p.label}</div>
-          <div className="text-2xl font-extrabold text-gray-900 mt-1">{p.value} <span className="text-sm font-normal text-gray-400">{p.unit}</span></div>
-        </div>
-      ))}
     </div>
   );
 }
@@ -1569,272 +1491,6 @@ function ProfileView({ session }: { session: any }) {
         </div>
       )}
       {pt === 'settings' && <div className="text-center py-12 text-gray-400 text-sm">Settings panel coming soon.</div>}
-    </div>
-  );
-}
-
-function SelfModule({ teacherId }: { teacherId: string | null }) {
-  const [st, setSt] = useState('overview');
-  const tabs = [
-    { key: 'overview', label: 'Overview', icon: LayoutDashboard },
-    { key: 'assignments', label: 'Assignments', icon: Briefcase },
-    { key: 'tasks', label: 'Tasks', icon: CheckSquare },
-    { key: 'schedule', label: 'Schedule', icon: CalendarDays },
-    { key: 'attendance', label: 'Attendance', icon: ClipboardList },
-    { key: 'leave', label: 'Leave', icon: Umbrella },
-    { key: 'performance', label: 'Performance', icon: TrendingUp },
-    { key: 'documents', label: 'Documents', icon: FolderOpen },
-    { key: 'resources', label: 'Resources', icon: Layers },
-    { key: 'activity', label: 'Activity Log', icon: Activity },
-    { key: 'notifications', label: 'Notifications', icon: Bell },
-  ];
-  const staffAssignments = useApi(() => staffApi.getAssignments(teacherId!), [teacherId], !!teacherId);
-  const staffTasks = useApi(() => staffApi.getTasks(teacherId!), [teacherId], !!teacherId);
-  const staffSchedules = useApi(() => staffApi.getSchedules(teacherId!), [teacherId], !!teacherId);
-  const staffLeave = useApi(() => staffApi.getLeaves(teacherId!), [teacherId], !!teacherId);
-  const staffPerf = useApi(() => staffApi.getPerformance(teacherId!), [teacherId], !!teacherId);
-  const staffDocs = useApi(() => staffApi.getDocuments(teacherId!), [teacherId], !!teacherId);
-  const staffRes = useApi(() => staffApi.getResources(teacherId!), [teacherId], !!teacherId);
-  const staffActivities = useApi(() => staffApi.getActivities(teacherId!), [teacherId], !!teacherId);
-  const staffNotifs = useApi(() => teacherApi.getNotifications(teacherId!), [teacherId], !!teacherId);
-
-  const assignmentsList = Array.isArray(staffAssignments.data?.assignments) ? staffAssignments.data.assignments : Array.isArray(staffAssignments.data) ? staffAssignments.data : [];
-  const tasksList = Array.isArray(staffTasks.data?.tasks) ? staffTasks.data.tasks : Array.isArray(staffTasks.data) ? staffTasks.data : [];
-  const scheduleList = Array.isArray(staffSchedules.data?.schedules) ? staffSchedules.data.schedules : Array.isArray(staffSchedules.data) ? staffSchedules.data : [];
-  const leavesList = Array.isArray(staffLeave.data?.leaves) ? staffLeave.data.leaves : Array.isArray(staffLeave.data) ? staffLeave.data : [];
-  const perfData = staffPerf.data?.performance || staffPerf.data || {};
-  const docsList = Array.isArray(staffDocs.data?.documents) ? staffDocs.data.documents : Array.isArray(staffDocs.data) ? staffDocs.data : [];
-  const resourcesList = Array.isArray(staffRes.data?.resources) ? staffRes.data.resources : Array.isArray(staffRes.data) ? staffRes.data : [];
-  const activityList = Array.isArray(staffActivities.data?.activities) ? staffActivities.data.activities : Array.isArray(staffActivities.data) ? staffActivities.data : [];
-  const notifList = Array.isArray(staffNotifs.data?.notifications) ? staffNotifs.data.notifications : Array.isArray(staffNotifs.data) ? staffNotifs.data : [];
-
-  const renderContent = () => {
-    switch (st) {
-      case 'overview':
-        return (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <div className="grid grid-cols-3 gap-3 mb-4">
-                {[
-                  { label: 'Active Assignments', value: assignmentsList.filter((a: any) => a.status === 'active').length, color: '#6D4CFF' },
-                  { label: 'Pending Tasks', value: tasksList.filter((t: any) => t.status === 'pending').length, color: '#F59E0B' },
-                  { label: 'Performance', value: perfData.score || perfData.rating || '—', color: '#22C55E' },
-                ].map((c, i) => (
-                  <div key={i} className="p-4 rounded-xl bg-white border border-gray-100">
-                    <div className="text-[10px] text-gray-400 uppercase font-semibold">{c.label}</div>
-                    <div className="text-xl font-extrabold mt-1" style={{ color: c.color }}>{c.value || 0}</div>
-                  </div>
-                ))}
-              </div>
-              <div className="p-4 rounded-xl bg-white border border-gray-100">
-                <h4 className="text-xs font-bold text-gray-900 mb-3">Recent Activity</h4>
-                {activityList.slice(0, 5).map((a: any, i: number) => (
-                  <div key={a.id || i} className="flex items-start gap-3 py-2 border-b border-gray-50 last:border-0">
-                    <div className="w-1.5 h-1.5 rounded-full bg-[#6D4CFF] mt-1.5" />
-                    <div>
-                      <div className="text-xs text-gray-700">{a.activity || a.description || a.action || 'Activity'}</div>
-                      <div className="text-[10px] text-gray-400">{a.created_at ? new Date(a.created_at).toLocaleDateString() : ''}</div>
-                    </div>
-                  </div>
-                ))}
-                {activityList.length === 0 && <div className="text-xs text-gray-400 py-4 text-center">No recent activity</div>}
-              </div>
-            </div>
-            <div>
-              <div className="p-4 rounded-xl bg-white border border-gray-100 mb-3">
-                <h4 className="text-xs font-bold text-gray-900 mb-3">Upcoming Schedule</h4>
-                {scheduleList.slice(0, 4).map((s: any, i: number) => (
-                  <div key={s.id || i} className="flex items-center gap-2 py-1.5 text-xs text-gray-600">
-                    <Clock size={12} /> {s.title || s.name || 'Event'} — {s.date || s.start_date || ''}
-                  </div>
-                ))}
-                {scheduleList.length === 0 && <div className="text-xs text-gray-400 text-center py-4">No upcoming events</div>}
-              </div>
-              <div className="p-4 rounded-xl bg-white border border-gray-100">
-                <h4 className="text-xs font-bold text-gray-900 mb-3">Recent Notifications</h4>
-                {notifList.slice(0, 4).map((n: any, i: number) => (
-                  <div key={n.id || i} className="flex items-start gap-2 py-1.5 text-xs text-gray-600">
-                    <div className={`w-1.5 h-1.5 rounded-full mt-1 ${n.type === 'danger' ? 'bg-red-500' : 'bg-[#6D4CFF]'}`} />
-                    <span>{n.title || n.message || 'Notification'}</span>
-                  </div>
-                ))}
-                {notifList.length === 0 && <div className="text-xs text-gray-400 text-center py-4">No notifications</div>}
-              </div>
-            </div>
-          </div>
-        );
-      case 'assignments':
-        return (
-          <div className="space-y-2">
-            {assignmentsList.length > 0 ? assignmentsList.map((a: any, i: number) => (
-              <div key={a.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{a.title || a.name || 'Assignment'}</div>
-                  <div className="text-xs text-gray-500">{a.description || a.type || ''}</div>
-                </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${a.status === 'active' ? 'bg-emerald-50 text-emerald-600' : a.status === 'pending' ? 'bg-purple-50 text-purple-600' : 'bg-gray-100 text-gray-500'}`}>
-                  {a.status || 'active'}
-                </span>
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No assignments yet</div>}
-          </div>
-        );
-      case 'tasks':
-        return (
-          <div className="space-y-2">
-            {tasksList.length > 0 ? tasksList.map((t: any, i: number) => (
-              <div key={t.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <CheckSquare size={16} className="text-gray-400" />
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{t.title || t.name || 'Task'}</div>
-                    <div className="text-xs text-gray-500">{t.description || ''}</div>
-                  </div>
-                </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${t.status === 'completed' ? 'bg-emerald-50 text-emerald-600' : t.status === 'in_progress' || t.status === 'in-progress' ? 'bg-blue-50 text-blue-600' : t.status === 'overdue' ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600'}`}>
-                  {t.status || 'pending'}
-                </span>
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No tasks assigned</div>}
-          </div>
-        );
-      case 'schedule':
-        return (
-          <div className="space-y-2">
-            {scheduleList.length > 0 ? scheduleList.map((s: any, i: number) => (
-              <div key={s.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <Clock size={16} className="text-gray-400" />
-                  <div>
-                    <div className="text-sm font-semibold text-gray-900">{s.title || s.name || 'Schedule'}</div>
-                    <div className="text-xs text-gray-500">{s.date || s.start_date || ''} {s.start_time ? `• ${s.start_time}` : ''}</div>
-                  </div>
-                </div>
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No schedule entries</div>}
-          </div>
-        );
-      case 'attendance':
-        return (
-          <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">
-            <ClipboardList size={48} className="mx-auto mb-3 opacity-30" />
-            <p className="font-medium">Your attendance records managed by management</p>
-          </div>
-        );
-      case 'leave':
-        return (
-          <div className="space-y-2">
-            {leavesList.length > 0 ? leavesList.map((l: any, i: number) => (
-              <div key={l.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-center justify-between">
-                <div>
-                  <div className="text-sm font-semibold text-gray-900">{l.leave_type || l.type || 'Leave'}</div>
-                  <div className="text-xs text-gray-500">{l.start_date || ''} → {l.end_date || ''}</div>
-                </div>
-                <span className={`px-2.5 py-1 rounded-full text-[10px] font-semibold ${l.status === 'approved' ? 'bg-emerald-50 text-emerald-600' : l.status === 'rejected' ? 'bg-red-50 text-red-600' : 'bg-purple-50 text-purple-600'}`}>
-                  {l.status || 'pending'}
-                </span>
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No leave records</div>}
-          </div>
-        );
-      case 'performance':
-        return (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { label: 'Attendance Score', value: perfData.attendance_score || perfData.attendance || '—', unit: '%' },
-              { label: 'Task Completion', value: perfData.task_completion || perfData.tasks || '—', unit: '%' },
-              { label: 'Overall Score', value: perfData.score || perfData.rating || '—', unit: '/100' },
-              { label: 'Homework Completion', value: perfData.homework_completion || '—', unit: '%' },
-            ].map((p, i) => (
-              <div key={i} className="p-4 rounded-xl bg-white border border-gray-100 text-center">
-                <div className="text-[10px] text-gray-400 uppercase font-semibold">{p.label}</div>
-                <div className="text-2xl font-extrabold text-gray-900 mt-1">{p.value} <span className="text-sm font-normal text-gray-400">{p.unit}</span></div>
-              </div>
-            ))}
-          </div>
-        );
-      case 'documents':
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {docsList.length > 0 ? docsList.map((d: any, i: number) => (
-              <div key={d.id || i} className="p-4 rounded-xl bg-white border border-gray-100 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <FolderOpen size={16} className="text-[#6D4CFF]" />
-                  <span className="text-sm font-semibold text-gray-900">{d.name || d.title || 'Document'}</span>
-                </div>
-                <div className="text-[10px] text-gray-400">{d.type || d.document_type || ''}</div>
-              </div>
-            )) : <div className="col-span-full text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No documents</div>}
-          </div>
-        );
-      case 'resources':
-        return (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {resourcesList.length > 0 ? resourcesList.map((r: any, i: number) => (
-              <div key={r.id || i} className="p-4 rounded-xl bg-white border border-gray-100 hover:shadow-sm transition-shadow">
-                <div className="flex items-center gap-2 mb-2">
-                  <Layers size={16} className="text-[#6D4CFF]" />
-                  <span className="text-sm font-semibold text-gray-900">{r.name || r.title || 'Resource'}</span>
-                </div>
-                <div className="text-[10px] text-gray-400">{r.type || r.resource_type || ''}</div>
-              </div>
-            )) : <div className="col-span-full text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No resources assigned</div>}
-          </div>
-        );
-      case 'activity':
-        return (
-          <div className="space-y-2">
-            {activityList.length > 0 ? activityList.map((a: any, i: number) => (
-              <div key={a.id || i} className="p-3 rounded-xl bg-white border border-gray-100 flex items-start gap-3">
-                <div className="w-2 h-2 rounded-full bg-[#6D4CFF] mt-1.5" />
-                <div>
-                  <div className="text-xs text-gray-700">{a.activity || a.description || a.action || 'Activity'}</div>
-                  <div className="text-[10px] text-gray-400">{a.created_at ? new Date(a.created_at).toLocaleString() : ''}</div>
-                </div>
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No activity logs</div>}
-          </div>
-        );
-      case 'notifications':
-        return (
-          <div className="space-y-2">
-            {notifList.length > 0 ? notifList.map((n: any, i: number) => (
-              <div key={n.id || i} className="p-4 rounded-xl bg-white border border-gray-100 flex items-start gap-3">
-                <div className={`w-2 h-2 rounded-full mt-1.5 ${n.type === 'danger' ? 'bg-red-500' : n.type === 'warning' ? 'bg-purple-500' : 'bg-[#6D4CFF]'}`} />
-                <div>
-                  <div className="text-xs font-semibold text-gray-900">{n.title || 'Notification'}</div>
-                  <div className="text-xs text-gray-500">{n.message || ''}</div>
-                  <div className="text-[10px] text-gray-400 mt-0.5">{n.created_at ? new Date(n.created_at).toLocaleDateString() : ''}</div>
-                </div>
-                {!n.read && <span className="w-2 h-2 rounded-full bg-[#6D4CFF] ml-auto" />}
-              </div>
-            )) : <div className="text-center py-12 text-gray-400 text-sm border-2 border-dashed border-gray-200 rounded-2xl">No notifications</div>}
-          </div>
-        );
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div className="p-4 sm:p-6">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Self</h1>
-          <p className="text-sm text-gray-500 mt-1">Everything assigned by management, in one place</p>
-        </div>
-      </div>
-      <div className="flex gap-1 mb-6 bg-gray-100 p-1 rounded-xl overflow-x-auto">
-        {tabs.map(tab => (
-          <button key={tab.key} onClick={() => setSt(tab.key)}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all whitespace-nowrap flex items-center gap-1.5 ${st === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            <tab.icon size={14} /> {tab.label}
-          </button>
-        ))}
-      </div>
-      <motion.div key={st} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.2 }}>
-        {renderContent()}
-      </motion.div>
     </div>
   );
 }

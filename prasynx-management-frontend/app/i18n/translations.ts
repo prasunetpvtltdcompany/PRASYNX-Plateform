@@ -1,4 +1,4 @@
-export type LanguageCode = 'en' | 'hi' | 'ta' | 'te' | 'bn' | 'mr' | 'gu';
+export type LanguageCode = 'en' | 'hi' | 'ta' | 'te' | 'bn' | 'mr' | 'gu' | 'kn' | 'ml' | 'pa' | 'or' | 'ur' | 'as';
 
 export const LANGUAGES: { code: LanguageCode; name: string; native: string }[] = [
   { code: 'en', name: 'English', native: 'English' },
@@ -8,6 +8,12 @@ export const LANGUAGES: { code: LanguageCode; name: string; native: string }[] =
   { code: 'bn', name: 'Bengali', native: 'বাংলা' },
   { code: 'mr', name: 'Marathi', native: 'मराठी' },
   { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી' },
+  { code: 'kn', name: 'Kannada', native: 'ಕನ್ನಡ' },
+  { code: 'ml', name: 'Malayalam', native: 'മലയാളം' },
+  { code: 'pa', name: 'Punjabi', native: 'ਪੰਜਾਬੀ' },
+  { code: 'or', name: 'Odia', native: 'ଓଡ଼ିଆ' },
+  { code: 'ur', name: 'Urdu', native: 'اردو' },
+  { code: 'as', name: 'Assamese', native: 'অসমীয়া' },
 ];
 
 type NestedTranslation = { [key: string]: string | NestedTranslation };
@@ -484,6 +490,88 @@ const en: Record<string, string | NestedTranslation> = {
     confirm: 'Are you sure?',
     uploadSuccess: 'Upload completed',
   },
+  nav: {
+    home: 'Home',
+    staff: 'Staff',
+    student: 'Student',
+    parent: 'Parent',
+    staffLabel: 'Staff Management',
+    studentLabel: 'Student Management',
+    parentLabel: 'Parent Management',
+    dashboard: 'Dashboard',
+    directory: 'Directory',
+    attendance: 'Attendance',
+    assignments: 'Assignments',
+    academic: 'Academic',
+    timetable: 'Timetable',
+    leave: 'Leave',
+    performance: 'Performance',
+    salary: 'Salary',
+    expenses: 'Expenses',
+    documents: 'Documents',
+    communication: 'Communication',
+    analytics: 'Analytics',
+    settings: 'Settings',
+    approvals: 'Approvals',
+    roles: 'Roles & Permissions',
+    reports: 'Reports',
+    announcements: 'Announcements',
+    audit: 'Audit Logs',
+    'ai-assistant': 'AI Assistant',
+    admissions: 'Admissions',
+    academics: 'Academics',
+    subjects: 'Subjects',
+    examinations: 'Examinations',
+    promotion: 'Promotion',
+    discipline: 'Discipline',
+    health: 'Health',
+    transport: 'Transport',
+    mapping: 'Student Mapping',
+    ptm: 'PTM',
+    complaints: 'Complaints',
+    requests: 'Requests',
+    notifications: 'Notifications',
+  },
+  ui: {
+    add: 'Add', create: 'Create', save: 'Save', update: 'Update', edit: 'Edit',
+    delete: 'Delete', cancel: 'Cancel', close: 'Close', refresh: 'Refresh',
+    actions: 'Actions', search: 'Search', filter: 'Filter', reset: 'Reset', apply: 'Apply',
+    export: 'Export', print: 'Print', view: 'View', back: 'Back', next: 'Next', previous: 'Previous',
+    name: 'Name', email: 'Email', phone: 'Phone', role: 'Role', status: 'Status',
+    date: 'Date', amount: 'Amount', type: 'Type', subject: 'Subject', section: 'Section',
+    active: 'Active', inactive: 'Inactive', pending: 'Pending', approved: 'Approved', rejected: 'Rejected',
+    total: 'Total', take: 'Take', mark: 'Mark',
+    required: 'Required', select: 'Select', manage: 'Manage', submit: 'Submit',
+  },
+  mod: {
+    overview: 'Overview', staffDirectory: 'Staff Directory', markAttendance: 'Mark Attendance',
+    corrections: 'Corrections', heatmap: 'Heatmap', reports: 'Reports', departments: 'Departments',
+    attrition: 'Attrition', certifications: 'Certifications', complianceStatus: 'Compliance Status',
+    audits: 'Audits', jobPostings: 'Job Postings', applicants: 'Applicants', hiringPipeline: 'Hiring Pipeline',
+    applied: 'Applied', screening: 'Screening', interview: 'Interview', offer: 'Offer', hired: 'Hired',
+    salaryStructures: 'Salary Structures', payslips: 'Payslips', deductions: 'Deductions',
+    allDocuments: 'All Documents', trainingPrograms: 'Training Programs', trainings: 'Training Programs',
+    performance: 'Performance', review: 'Reviews', kpis: 'KPIs', feedback: 'Feedback',
+    people: 'People', roles: 'Roles', permissions: 'Permissions', restricted: 'Restricted',
+    activeOnboarding: 'Active Onboarding', onboardingTemplates: 'Onboarding Templates', completed: 'Completed',
+    timetable: 'Timetable', workAssignments: 'Work Assignments', workloadDistribution: 'Workload Distribution',
+    reviews: 'Reviews', employees: 'Employees', profile: 'Profile', settings: 'Settings',
+    balancing: 'Balance', transactions: 'Transactions', summary: 'Summary', statistics: 'Statistics',
+    clearFilters: 'Clear Filters', noMatches: 'No staff members found matching your criteria', attendanceReport: 'Attendance Report',
+    monthlySummary: 'Monthly Summary', absenteeism: 'Absenteeism Report', lateComing: 'Late Coming Report',
+    wfh: 'WFH Report', yearlyOverview: 'Yearly Overview', totalStaff: 'Total Staff', teaching: 'Teaching',
+    nonTeaching: 'Non-Teaching', active: 'Active', onLeave: 'On Leave', newJoiners: 'New Joiners',
+    totalPayroll: 'Total Payroll', avgSalary: 'Average Salary', allowances: 'Allowances',
+    activeEmployees: 'Active Employees', monthly: 'Monthly', perEmployee: 'Per employee', thisMonth: 'This month',
+    present: 'Present', absent: 'Absent', late: 'Late', staffAnalytics: 'Staff Analytics',
+    leaveRequests: 'Leave Requests', balances: 'Balances', analytics: 'Analytics',
+    staffCompliance: 'Staff Compliance', leaveManagement: 'Leave Management', staffDocuments: 'Staff Documents',
+    staffPayroll: 'Payroll Management', staffPerformance: 'Staff Performance', staffSchedule: 'Schedule Management',
+    staffRecruitment: 'Recruitment', responsiblePerson: 'Responsible Person', workFromHome: 'Work From Home',
+    messages: 'Messages', announcements: 'Announcements', staffBroadcast: 'Staff Broadcast',
+    communicationCenter: 'Communication Center', documents: 'Documents',
+    staffOnboarding: 'Staff Onboarding', activeBroadcasts: 'Active Broadcasts', staffReach: 'Staff Reach',
+  },
 };
 
 const hi: Record<string, string | NestedTranslation> = {
@@ -512,6 +600,55 @@ const hi: Record<string, string | NestedTranslation> = {
   documents: { title: 'दस्तावेज़ और प्रमाणपत्र', description: 'आईडी कार्ड, बोनाफाइड प्रमाणपत्र, स्थानांतरण प्रमाणपत्र, अंकपत्र और अन्य स्कूल दस्तावेज़ जनरेट करें।', tableType: 'प्रकार', tableTitle: 'शीर्षक', tableStatus: 'स्थिति', tableOwner: 'स्वामी' },
   audit: { title: 'ऑडिट लॉग और रिपोर्ट', user: 'उपयोगकर्ता', selectUser: 'उपयोगकर्ता चुनें', action: 'कार्रवाई', severity: 'गंभीरता', info: 'जानकारी', warning: 'चेतावनी', critical: 'गंभीर', details: 'विवरण', captureBtn: 'ऑडिट लॉग कैप्चर करें', tableUser: 'उपयोगकर्ता', tableAction: 'कार्रवाई', tableSeverity: 'गंभीरता', tableDate: 'तिथि', system: 'सिस्टम' },
   common: { or: 'या', and: 'और', to: 'से', na: 'उपलब्ध नहीं', all: 'सभी', none: 'कोई नहीं', yes: 'हाँ', no: 'नहीं', close: 'बंद करें', confirm: 'क्या आपको यकीन है?' },
+  nav: {
+    home: 'होम', staff: 'स्टाफ', student: 'छात्र', parent: 'अभिभावक',
+    staffLabel: 'स्टाफ प्रबंधन', studentLabel: 'छात्र प्रबंधन', parentLabel: 'अभिभावक प्रबंधन',
+    dashboard: 'डैशबोर्ड', directory: 'निर्देशिका', attendance: 'उपस्थिति', assignments: 'कार्यभार',
+    academic: 'शैक्षणिक', timetable: 'समय सारिणी', leave: 'अवकाश', performance: 'प्रदर्शन',
+    salary: 'वेतन', expenses: 'खर्च', documents: 'दस्तावेज़', communication: 'संचार',
+    analytics: 'विश्लेषण', settings: 'सेटिंग्स', approvals: 'अनुमोदन', roles: 'भूमिकाएं और अनुमतियां',
+    reports: 'रिपोर्ट', announcements: 'घोषणाएं', audit: 'ऑडिट लॉग', 'ai-assistant': 'एआई सहायक',
+    admissions: 'प्रवेश', academics: 'शैक्षणिक', subjects: 'विषय', examinations: 'परीक्षाएं',
+    promotion: 'पदोन्नति', discipline: 'अनुशासन', health: 'स्वास्थ्य', transport: 'परिवहन',
+    mapping: 'छात्र मैपिंग', ptm: 'पीटीएम', complaints: 'शिकायतें', requests: 'अनुरोध', notifications: 'सूचनाएं',
+  },
+  ui: {
+    add: 'जोड़ें', create: 'बनाएं', save: 'सहेजें', update: 'अपडेट करें', edit: 'संपादित करें',
+    delete: 'हटाएं', cancel: 'रद्द करें', close: 'बंद करें', refresh: 'रीफ्रेश करें',
+    actions: 'क्रियाएं', search: 'खोजें', filter: 'फ़िल्टर', reset: 'रीसेट', apply: 'लागू करें',
+    export: 'निर्यात', print: 'प्रिंट', view: 'देखें', back: 'वापस', next: 'अगला', previous: 'पिछला',
+    name: 'नाम', email: 'ईमेल', phone: 'फोन', role: 'भूमिका', status: 'स्थिति',
+    date: 'तारीख', amount: 'रकम', active: 'सक्रिय', inactive: 'निष्क्रिय', pending: 'लंबित',
+    approved: 'स्वीकृत', rejected: 'अस्वीकृत', total: 'कुल', take: 'लें', mark: 'चिह्नित करें', required: 'आवश्यक', select: 'चुनें', manage: 'प्रबंधित करें', submit: 'जमा करें',
+  },
+  mod: {
+    overview: 'अवलोकन', staffDirectory: 'स्टाफ निर्देशिका', markAttendance: 'उपस्थिति दर्ज करें',
+    corrections: 'सुधार', heatmap: 'हीटमैप', reports: 'रिपोर्ट', departments: 'विभाग',
+    attrition: 'कर्मचारी कमी', certifications: 'प्रमाणपत्र', complianceStatus: 'अनुपालन स्थिति',
+    audits: 'ऑडिट', jobPostings: 'नौकरी पोस्टिंग', applicants: 'आवेदक', hiringPipeline: 'भर्ती पाइपलाइन',
+    applied: 'आवेदन किया', screening: 'स्क्रीनिंग', interview: 'साक्षात्कार', offer: 'ऑफर', hired: 'नियुक्त',
+    salaryStructures: 'वेतन संरचना', payslips: 'पर्सलिप', deductions: 'कटौती',
+    allDocuments: 'सभी दस्तावेज़', trainingPrograms: 'प्रशिक्षण कार्यक्रम', trainings: 'प्रशिक्षण कार्यक्रम',
+    performance: 'प्रदर्शन', review: 'समीक्षाएं', kpis: 'KPI', feedback: 'प्रतिक्रिया',
+    people: 'लोग', roles: 'भूमिकाएं', permissions: 'अनुमतियां', restricted: 'प्रतिबंधित',
+    activeOnboarding: 'सक्रिय ऑनबोर्डिंग', onboardingTemplates: 'ऑनबोर्डिंग टेम्पलेट', completed: 'पूर्ण',
+    timetable: 'समय सारिणी', workAssignments: 'कार्य नियुक्तियां', workloadDistribution: 'कार्यभार वितरण',
+    reviews: 'समीक्षाएं', employees: 'कर्मचारी', profile: 'प्रोफ़ाइल', settings: 'सेटिंग्स',
+    balancing: 'बैलेंस', transactions: 'लेन-देन', summary: 'सारांश', statistics: 'आँकड़े',
+    clearFilters: 'फ़िल्टर साफ़ करें', noMatches: 'आपकी शर्तों से मेल खाता कोई स्टाफ नहीं', attendanceReport: 'उपस्थिति रिपोर्ट',
+    monthlySummary: 'मासिक सारांश', absenteeism: 'अनुपस्थिति रिपोर्ट', lateComing: 'देर से आना रिपोर्ट',
+    wfh: 'WFH रिपोर्ट', yearlyOverview: 'वार्षिक अवलोकन', totalStaff: 'कुल स्टाफ', teaching: 'शिक्षण',
+    nonTeaching: 'गैर-शिक्षण', active: 'सक्रिय', onLeave: 'अवकाश पर', newJoiners: 'नए सदस्य',
+    totalPayroll: 'कुल वेतन', avgSalary: 'औसत वेतन', allowances: 'भत्ते', monthly: 'मासिक',
+    perEmployee: 'प्रति कर्मचारी', thisMonth: 'इस महीने', present: 'उपस्थित', absent: 'अनुपस्थित', late: 'देरी से', staffAnalytics: 'स्टाफ विश्लेषण',
+    leaveRequests: 'अवकाश आवेदन', balances: 'बैलेंस', analytics: 'विश्लेषण',
+    staffCompliance: 'स्टाफ अनुपालन', leaveManagement: 'अवकाश प्रबंधन', staffDocuments: 'स्टाफ दस्तावेज़',
+    staffPayroll: 'वेतन प्रबंधन', staffPerformance: 'स्टाफ प्रदर्शन', staffSchedule: 'अनुसूची प्रबंधन',
+    staffRecruitment: 'भर्ती', responsiblePersonnel: 'जिम्मेदार व्यक्ति', workFromHome: 'घर से काम',
+    messages: 'संदेश', announcements: 'घोषणाएं', staffBroadcast: 'स्टाफ प्रसारण',
+    communicationCenter: 'संचार केंद्र', documents: 'दस्तावेज़',
+    staffOnboarding: 'स्टाफ ऑनबोर्डिंग', activeBroadcasts: 'सक्रिय प्रसारण', staffReach: 'स्टाफ पहुंच',
+  },
 };
 
 const ta: Record<string, string | NestedTranslation> = {
@@ -537,6 +674,27 @@ const ta: Record<string, string | NestedTranslation> = {
   documents: { title: 'ஆவணங்கள் மற்றும் சான்றிதழ்கள்', description: 'அடையாள அட்டைகள், பொனாஃபைடு சான்றிதழ்கள், இடமாற்ற சான்றிதழ்கள், மதிப்பெண் பட்டியல்கள் மற்றும் பிற பள்ளி ஆவணங்களை உருவாக்கவும்.', tableType: 'வகை', tableTitle: 'தலைப்பு', tableStatus: 'நிலை', tableOwner: 'உரிமையாளர்' },
   audit: { title: 'தணிக்கை பதிவுகள் மற்றும் அறிக்கைகள்', user: 'பயனர்', selectUser: 'பயனரைத் தேர்ந்தெடு', action: 'செயல்', severity: 'தீவிரத்தன்மை', info: 'தகவல்', warning: 'எச்சரிக்கை', critical: 'முக்கியமான', details: 'விவரங்கள்', captureBtn: 'தணிக்கை பதிவைப் பிடிக்கவும்', tableUser: 'பயனர்', tableAction: 'செயல்', tableSeverity: 'தீவிரத்தன்மை', tableDate: 'தேதி', system: 'அமைப்பு' },
   common: { or: 'அல்லது', and: 'மற்றும்', to: 'வரை', na: 'கிடைக்கவில்லை', all: 'அனைத்தும்', none: 'எதுவுமில்லை', yes: 'ஆம்', no: 'இல்லை', close: 'மூடு', confirm: 'உறுதியா?' },
+  nav: {
+    home: 'முகப்பு', staff: 'பணியாளர்', student: 'மாணவர்', parent: 'பெற்றோர்',
+    staffLabel: 'பணியாளர் மேலாண்மை', studentLabel: 'மாணவர் மேலாண்மை', parentLabel: 'பெற்றோர் மேலாண்மை',
+    dashboard: 'டாஷ்போர்டு', directory: 'அடைவு', attendance: 'வருகை', assignments: 'பணிகள்',
+    academic: 'கல்வி', timetable: 'நேர அட்டவணை', leave: 'விடுப்பு', performance: 'செயல்திறன்',
+    salary: 'சம்பளம்', expenses: 'செலவுகள்', documents: 'ஆவணங்கள்', communication: 'தொடர்பு',
+    analytics: 'பகுப்பாய்வு', settings: 'அமைப்புகள்', approvals: 'ஒப்புதல்கள்', roles: 'பணிகுறியீடுகள் மற்றும் அனுமதிகள்',
+    reports: 'அறிக்கைகள்', announcements: 'அறிவிப்புகள்', audit: 'கணக்குத் தணிக்கைப் பதிவு', 'ai-assistant': 'AI உதவியாளர்',
+    admissions: 'சேர்க்கை', academics: 'கல்வி', subjects: 'பாடங்கள்', examinations: 'தேர்வுகள்',
+    promotion: 'உயர்ச்சி', discipline: 'கட்டுப்பாடு', health: 'ஆரோக்கியம்', transport: 'போக்குவரத்து',
+    mapping: 'மாணவர் இணைப்பு', ptm: 'PTM', complaints: 'புகார்கள்', requests: 'கோரிக்கைகள்', notifications: 'அறிவிப்புகள்',
+  },
+  ui: {
+    add: 'சேர்', create: 'உருவாக்கு', save: 'சேமி', update: 'புதுப்பி', edit: 'திருத்து',
+    delete: 'நீக்கு', cancel: 'ரத்துசெய்', close: 'மூடு', refresh: 'புதுப்பி',
+    actions: 'செயல்கள்', search: 'தேடு', filter: 'வடிகட்டு', reset: 'மீட்டமை', apply: 'பயன்படுத்து',
+    export: 'ஏற்றுமதி', print: 'அச்சிடு', view: 'பார்', back: 'பின்', next: 'அடுத்து', previous: 'முந்தைய',
+    name: 'பெயர்', email: 'மின்னஞ்சல்', phone: 'தொலைபேசி', role: 'பதவி', status: 'நிலை',
+    date: 'தேதி', amount: 'தொகை', active: 'செயலில்', inactive: 'செயலற்று', pending: 'நிலுவையில்',
+    approved: 'அங்கீகரிக்கப்பட்டது', rejected: 'நிராகரிக்கப்பட்டது', total: 'மொத்தம்', take: 'எடுக்க', mark: 'குறி', required: 'தேவை', select: 'தேர்ந்தெடு', manage: 'நிர்வகி', submit: 'சமர்ப்பி',
+  },
 };
 
 const te: Record<string, string | NestedTranslation> = {
@@ -562,6 +720,27 @@ const te: Record<string, string | NestedTranslation> = {
   documents: { title: 'డాక్యుమెంట్లు & సర్టిఫికెట్లు', description: 'ID కార్డ్లు, బోనాఫైడ్ సర్టిఫికెట్లు, బదిలీ సర్టిఫికెట్లు, మార్క్స్ షీట్లు మరియు ఇతర పాఠశాల డాక్యుమెంట్లను రూపొందించండి.', tableType: 'రకం', tableTitle: 'శీర్షిక', tableStatus: 'స్థితి', tableOwner: 'యజమాని' },
   audit: { title: 'ఆడిట్ లాగ్స్ & రిపోర్ట్స్', user: 'వినియోగదారు', selectUser: 'వినియోగదారుని ఎంచుకోండి', action: 'చర్య', severity: 'తీవ్రత', info: 'సమాచారం', warning: 'హెచ్చరిక', critical: 'క్రిటికల్', details: 'వివరాలు', captureBtn: 'ఆడిట్ లాగ్ను క్యాప్చర్ చేయి', tableUser: 'వినియోగదారు', tableAction: 'చర్య', tableSeverity: 'తీవ్రత', tableDate: 'తేదీ', system: 'సిస్టమ్' },
   common: { or: 'లేదా', and: 'మరియు', to: 'నుండి', na: 'అందుబాటులో లేదు', all: 'అన్నీ', none: 'ఏదీ లేదు', yes: 'అవును', no: 'కాదు', close: 'మూసివేయి', confirm: 'మీరు ఖచ్చితంగా ఉన్నారా?' },
+  nav: {
+    home: 'హోమ్', staff: 'సిబ్బంది', student: 'విద్యార్థి', parent: 'తల్లిదండ్రి',
+    staffLabel: 'సిబ్బంది నిర్వహణ', studentLabel: 'విద్యార్థి నిర్వహణ', parentLabel: 'తలోరిగ నిర్వహణ',
+    dashboard: 'డాష్‍బోర్డ్', directory: 'డైరెక్టరీ', attendance: 'హాజరు', assignments: 'నియామకాలు',
+    academic: 'విద్యా', timetable: 'టైమ్ టేబుల్', leave: 'సెలవు', performance: 'ప్రతిభ',
+    salary: 'జీతం', expenses: 'ఖర్చులు', documents: 'పత్రాలు', communication: 'సంభందంల',
+    analytics: 'విశ్లేషణ', settings: 'సెట్టింగ్‌లు', approvals: 'ఆమోదాలు', roles: 'పాత్రలు మరియు అనుమతులు',
+    reports: 'నివేదికలు', announcements: 'ప్రకటనలు', audit: 'ఆడిట్ లాగ్', 'ai-assistant': 'AI సహాయకుడు',
+    admissions: 'ప్రవేశాలు', academics: 'విద్యా', subjects: 'సబ్జెక్టులు', examinations: 'పరీక్షలు',
+    promotion: 'పదోన్నతి', discipline: 'క్రమశిక్షణ', health: 'ఆరోగ్యం', transport: 'రవాణా',
+    mapping: 'విద్యార్థి లింకింగ్', ptm: 'PTM', complaints: 'ఫిర్యాదులు', requests: 'అభ్యర్థనలు', notifications: 'నోటిఫికేషన్‌లు',
+  },
+  ui: {
+    add: 'జోడించు', create: 'సృష్టించు', save: 'సేవ్ చేయి', edit: 'సవరించు',
+    delete: 'తొలగించు', cancel: 'రద్దు', close: 'మూసివేయి', refresh: 'పునఃప్రారంభించు',
+    actions: 'చర్యలు', search: 'వెతుకు', filter: 'ఫిల్టర్', reset: 'రీసెట్', apply: 'వర్తించు',
+    export: 'ఎగుమతి', print: 'ప్రింట్', view: 'చూడు', back: 'వెనుకకు', next: 'తదుపరి', previous: 'మునుపటి',
+    name: 'పేరు', email: 'ఇమెయిల్', phone: 'ఫోన్', role: 'పాత్ర', status: 'స్థితి',
+    date: 'తేదీ', amount: 'మొత్తం', active: 'యాక్టివ్', inactive: 'నిష్క్రియం', pending: 'వేచి ఉంది',
+    approved: 'ఆమోదించబడింది', rejected: 'తిరస్కరించబడింది', total: 'మొత్తం', take: 'తీసుకోండి', mark: 'గుర్తించండి', required: 'అవసరం', select: 'ఎంచుకోండి', manage: 'నిర్వహించు', submit: 'సమర్పించు',
+  },
 };
 
 const bn: Record<string, string | NestedTranslation> = {
@@ -587,6 +766,27 @@ const bn: Record<string, string | NestedTranslation> = {
   documents: { title: 'নথিপত্র ও সনদ', description: 'আইডি কার্ড, বোনাফাইড সনদ, স্থানান্তর সনদ, মার্কশিট এবং অন্যান্য স্কুল নথি তৈরি করুন।', tableType: 'ধরন', tableTitle: 'শিরোনাম', tableStatus: 'স্থিতি', tableOwner: 'মালিক' },
   audit: { title: 'অডিট লগ ও রিপোর্ট', user: 'ব্যবহারকারী', selectUser: 'ব্যবহারকারী নির্বাচন করুন', action: 'কাজ', severity: 'গুরুত্ব', info: 'তথ্য', warning: 'সতর্কতা', critical: 'গুরুতর', details: 'বিবরণ', captureBtn: 'অডিট লগ ক্যাপচার করুন', tableUser: 'ব্যবহারকারী', tableAction: 'কাজ', tableSeverity: 'গুরুত্ব', tableDate: 'তারিখ', system: 'সিস্টেম' },
   common: { or: 'বা', and: 'এবং', to: 'থেকে', na: 'প্রযোজ্য নয়', all: 'সব', none: 'কোনটিই নয়', yes: 'হ্যাঁ', no: 'না', close: 'বন্ধ করুন', confirm: 'আপনি কি নিশ্চিত?' },
+  nav: {
+    home: 'হোম', staff: 'কর্মচারী', student: 'শিক্ষার্থী', parent: 'অভিভাবক',
+    staffLabel: 'কর্মচারী ব্যবস্থাপনা', studentLabel: 'শিক্ষার্থী ব্যবস্থাপনা', parentLabel: 'অভিভাবক ব্যবস্থাপনা',
+    dashboard: 'ড্যাশবোর্ড', directory: 'ডিরেক্টরি', attendance: 'উপস্থিতি', assignments: 'দায়িত্ব',
+    academic: 'একাডেমিক', timetable: 'সময়সূচী', leave: 'ছুটি', performance: 'কর্মক্ষমতা',
+    salary: 'বেতন', expenses: 'ব্যয়', documents: 'নথিপত্র', communication: 'যোগাযোগ',
+    analytics: 'বিশ্লেষণ', settings: 'সেটিংস', approvals: 'অনুমোদন', roles: 'ভূমিকা এবং অনুমতি',
+    reports: 'রিপোর্ট', announcements: 'ঘোষণা', audit: 'অডিট লগ', 'ai-assistant': 'AI সহায়ক',
+    admissions: 'ভর্তি', academics: 'একাডেমিক', subjects: 'বিষয়সমূহ', examinations: 'পরীক্ষা',
+    promotion: 'পদোন্নতি', discipline: 'শৃঙ্খলা', health: 'স্বাস্থ্য', transport: 'পরিবহন',
+    mapping: 'শিক্ষার্থী ম্যাপিং', ptm: 'PTM', complaints: 'অভিযোগ', requests: 'অনুরোধ', notifications: 'বিজ্ঞপ্তি',
+  },
+  ui: {
+    add: 'যোগ করুন', create: 'তৈরি করুন', save: 'সংরক্ষণ করুন', update: 'আপডেট করুন', edit: 'সম্পাদনা',
+    delete: 'মুছুন', cancel: 'বাতিল', close: 'বন্ধ করুন', refresh: 'রিফ্রেশ',
+    search: 'অনুসন্ধান', filter: 'ফিল্টার', apply: 'প্রয়োগ করুন', export: 'রপ্তানি', print: 'প্রিন্ট',
+    view: 'দেখুন', back: 'পেছনে', next: 'পরবর্তী', previous: 'পূর্ববর্তী', actions: 'ক্রিয়া',
+    name: 'নাম', email: 'ইমেইল', phone: 'ফোন', role: 'ভূমিকা', status: 'অবস্থা',
+    date: 'তারিখ', amount: 'পরিমাণ', active: 'সক্রিয়', inactive: 'নিষ্ক্রিয়', pending: 'বিচারাধীন',
+    approved: 'অনুমোদিত', rejected: 'প্রত্যাখ্যাত', total: 'মোট', take: 'নিন', mark: 'চিহ্ন', required: 'আবশ্যক', select: 'নির্বাচন করুন', manage: 'ব্যবস্থাপনা', submit: 'জমা দিন',
+  },
 };
 
 const mr: Record<string, string | NestedTranslation> = {
@@ -611,7 +811,28 @@ const mr: Record<string, string | NestedTranslation> = {
   payroll: { title: 'उपस्थिती आणि वेतन', staff: 'कर्मचारी', selectStaff: 'कर्मचारी निवडा', payrollMonth: 'वेतन महिना', monthPlaceholder: 'YYYY-MM', grossAmount: 'एकूण रक्कम', deductions: 'कपात', notes: 'टिपा', recordPayroll: 'वेतन रेकॉर्ड करा', tableStaff: 'कर्मचारी', tableMonth: 'महिना', tableNet: 'निव्वळ रक्कम', tableStatus: 'स्थिती' },
   documents: { title: 'दस्तऐवज आणि प्रमाणपत्रे', description: 'ओळखपत्रे, बोनाफाइड प्रमाणपत्रे, बदली प्रमाणपत्रे, गुणपत्रिका आणि इतर शाळेची दस्तऐवजे तयार करा.', tableType: 'प्रकार', tableTitle: 'शीर्षक', tableStatus: 'स्थिती', tableOwner: 'मालक' },
   audit: { title: 'ऑडिट लॉग आणि अहवाल', user: 'वापरकर्ता', selectUser: 'वापरकर्ता निवडा', action: 'क्रिया', severity: 'तीव्रता', info: 'माहिती', warning: 'चेतावणी', critical: 'गंभीर', details: 'तपशील', captureBtn: 'ऑडिट लॉग कॅप्चर करा', tableUser: 'वापरकर्ता', tableAction: 'क्रिया', tableSeverity: 'तीव्रता', tableDate: 'तारीख', system: 'सिस्टम' },
-  common: { or: 'किंवा', and: 'आणि', to: 'पर्यंत', na: 'उपलब्ध नाही', all: 'सर्व', none: 'कोणतेही नाही', yes: 'होय', no: 'नाही', close: 'बंद करा', confirm: 'तुम्हाला खात्री आहे?' },
+common: { or: 'किंवा', and: 'आणि', to: 'पर्यंत', na: 'उपलब्ध नाही', all: 'सर्व', none: 'कोणतेही नाही', yes: 'होय', no: 'नाही', close: 'बंद करा', confirm: 'तुम्हाला खात्री आहे?' },
+  nav: {
+    home: 'मुख्यपृष्ठ', staff: 'कर्मचारी', student: 'विद्यार्थी', parent: 'पालक',
+    staffLabel: 'कर्मचारी व्यवस्थापन', studentLabel: 'विद्यार्थी व्यवस्थापन', parentLabel: 'पालक व्यवस्थापन',
+    dashboard: 'डॅशबोर्ड', directory: 'निर्देशिका', attendance: 'उपस्थिती', assignments: 'नियुक्ती',
+    academic: 'शैक्षणिक', timetable: 'वेळापत्रक', leave: 'रजा', performance: 'कामगिरी',
+    salary: 'पगार', expenses: 'खर्च', documents: 'दस्तऐवज', communication: 'संवाद',
+    analytics: 'विश्लेषण', settings: 'सेटिंग्ज', approvals: 'मान्यता', roles: 'भूमिका आणि अनुमती',
+    reports: 'अहवाल', announcements: 'घोषणा', audit: 'ऑडिट लॉग', 'ai-assistant': 'AI सहायक',
+    admissions: 'प्रवेश', academics: 'शैक्षणिक', subjects: 'विषय', examinations: 'परीक्षा',
+    promotion: 'पदोन्नती', discipline: 'शिस्त', health: 'आरोग्य', transport: 'वाहतूक',
+    mapping: 'विद्यार्थी मॅपिंग', ptm: 'पीटीएम', complaints: 'तक्रारी', requests: 'विनंत्या', notifications: 'सूचना',
+  },
+  ui: {
+    add: 'जोडा', create: 'तयार करा', save: 'जतन करा', update: 'अद्यावत करा', edit: 'संपादित करा',
+    delete: 'हटवा', cancel: 'रद्द करा', close: 'बंद करा', refresh: 'रीफ्रेश करा',
+    search: 'शोधा', filter: 'फिल्टर', apply: 'लागू करा', export: 'निर्यात', print: 'प्रिंट',
+    view: 'पहा', back: 'मागे', next: 'पुढे', previous: 'मागील', actions: 'क्रिया',
+    name: 'नाव', email: 'ईमेल', phone: 'फोन', role: 'भूमिका', status: 'स्थिती',
+    date: 'तारीख', amount: 'रक्कम', active: 'सक्रिय', inactive: 'निष्क्रिय', pending: 'প্রलंबित',
+    approved: 'मंजूर', rejected: 'नाकारले', total: 'एकूण', take: 'घ्या', mark: 'चिन्हांकित', required: 'आवश्यक', select: 'निवडा', manage: 'व्यवस्थापन', submit: 'सबमिट',
+  },
 };
 
 const gu: Record<string, string | NestedTranslation> = {
@@ -637,10 +858,125 @@ const gu: Record<string, string | NestedTranslation> = {
   documents: { title: 'દસ્તાવેજો અને પ્રમાણપત્રો', description: 'ID કાર્ડ, બોનાફાઇડ પ્રમાણપત્ર, ટ્રાન્સફર સર્ટિફિકેટ, માર્કશીટ અને અન્ય શાળાના દસ્તાવેજો જનરેટ કરો.', tableType: 'પ્રકાર', tableTitle: 'શીર્ષક', tableStatus: 'સ્થિતિ', tableOwner: 'માલિક' },
   audit: { title: 'ઓડિટ લોગ અને રિપોર્ટ્સ', user: 'વપરાશકર્તા', selectUser: 'વપરાશકર્તા પસંદ કરો', action: 'ક્રિયા', severity: 'ગંભીરતા', info: 'માહિતી', warning: 'ચેતવણી', critical: 'ગંભીર', details: 'વિગતો', captureBtn: 'ઓડિટ લોગ કેપ્ચર કરો', tableUser: 'વપરાશકર્તા', tableAction: 'ક્રિયા', tableSeverity: 'ગંભીરતા', tableDate: 'તારીખ', system: 'સિસ્ટમ' },
   common: { or: 'અથવા', and: 'અને', to: 'થી', na: 'લાગુ પડતું નથી', all: 'બધા', none: 'કોઈ નહીં', yes: 'હા', no: 'ના', close: 'બંધ કરો', confirm: 'શું તમને ખાતરી છે?' },
+  nav: {
+    home: 'હોમ', staff: 'સ્ટાફ', student: 'વિદ્યાર્થી', parent: 'વાલી',
+    staffLabel: 'સ્ટાફ મેનેજમેન્ટ', studentLabel: 'વિદ્યાર્થી મેનેજમેન્ટ', parentLabel: 'વાલી મેનેજમેન્ટ',
+    dashboard: 'ડેશબોર્ડ', directory: 'ડિરેક્ટરી', attendance: 'હાજરી', assignments: 'સોંપણીઓ',
+    academic: 'એકેડેમિક', timetable: 'સમયપત્રક', leave: 'રજા', performance: 'કામગીરી',
+    salary: 'પગાર', expenses: 'ખર્ચ', documents: 'દસ્તાવેજો', communication: 'સંદેશવ્યવહાર',
+    analytics: 'એનાલિટિક્સ', settings: 'સેટિંગ્સ', approvals: 'મંજૂરીઓ', roles: 'ભૂમિકાઓ અને પરવાનગીઓ',
+    reports: 'રિપોર્ટ', announcements: 'જાહેરાતો', audit: 'ઓડિટ લોગ', 'ai-assistant': 'AI સહાયક',
+    admissions: 'પ્રવેશ', academics: 'એકેડમિક', subjects: 'વિષયો', examinations: 'પરીક્ષાઓ',
+    promotion: 'બઢતી', discipline: 'શિસ્ત', health: 'આરોગ્ય', transport: 'પરિવહન',
+    mapping: 'વિદ્યાર્થી મૅપિંગ', ptm: 'PTM', complaints: 'ફરિયાદો', requests: 'વિનંતીઓ', notifications: 'સૂચનાઓ',
+  },
+  ui: {
+    add: 'ઉમેરો', create: 'બનાવો', save: 'સાચવો', update: 'અપડેટ કરો', edit: 'સંપાદિત કરો',
+    delete: 'કાઢી નાખો', cancel: 'રદ કરો', close: 'બંધ કરો', refresh: 'રિફ્રેશ',
+    search: 'શોધો', filter: 'ફિલ્ટર', export: 'નિકાસ', print: 'પ્રિન્ટ', view: 'જુઓ',
+    back: 'પાછળ', next: 'આગળ', previous: 'પાછલું', actions: 'ક્રિયાઓ',
+    name: 'નામ', email: 'ઇમેઇલ', phone: 'ફોન', role: 'ભૂમિકા', status: 'સ્થિતિ',
+    date: 'તારીખ', amount: 'રકમ', active: 'સક્રિય', inactive: 'નિષ્ક્રિય', pending: 'બાકી',
+    approved: 'મંજૂર', rejected: 'નામંજૂર', total: 'કુલ', take: 'લે', mark: 'ચિહ્ન', required: 'આવશ્યક', select: 'પસંદ કરો', manage: 'વ્યવસ્થાપન', submit: 'સબમિટ કરો',
+  },
+};
+
+const kn: Record<string, string | NestedTranslation> = {
+  app: { name: 'ಪ್ರಾಸಿನೆಟ್', portal: 'ನಿರ್ವಹಣಾ ಪೋರ್ಟಲ್', login: 'ಲಾಗಿನ್', logout: 'ಲಾಗ್ ಔಟ್', loading: 'ಲೋಡ್ ಆಗುತ್ತಿದೆ...', error: 'ದೋಷ', success: 'ಯಶಸ್ಸು', submit: 'ಸಲ್ಲಿಸಿ', cancel: 'ರದ್ದುಮಾಡಿ', save: 'ಉಳಿಸಿ', delete: 'ಅಳಿಸಿ', edit: 'ಸಂಪಾದಿಸಿ', view: 'ನೋಡಿ', search: 'ಹುಡುಕಿ', filter: 'ಫಿಲ್ಟರ್', export: 'ರಫ್ತು', print: 'ಮುದ್ರಿಸಿ', back: 'ಹಿಂದೆ', next: 'ಮುಂದೆ', noData: 'ಯಾವುದೇ ಡೇಟಾ ಲಭ್ಯವಿಲ್ಲ.' },
+  common: { or: 'ಅಥವಾ', and: 'ಮತ್ತು', to: 'ಗೆ', na: 'ಅನ್ವಯವಾಗುವುದಿಲ್ಲ', all: 'ಎಲ್ಲಾ', none: 'ಯಾವುದೂ ಇಲ್ಲ', yes: 'ಹೌದು', no: 'ಇಲ್ಲ', close: 'ಮುಚ್ಚಿ', confirm: 'ನೀವು ಖಚಿತವಾಗಿದ್ದೀರಾ?' },
+  nav: {
+    home: 'ಹೋಮ್', staff: 'ಸಿಬ್ಬಂದಿ', student: 'ವಿದ್ಯಾರ್ಥಿ', parent: 'ಪೋಷಕ',
+    staffLabel: 'ಸಿಬ್ಬಂದಿ ನಿರ್ವಹಣೆ', studentLabel: 'ವಿದ್ಯಾರ್ಥಿ ನಿರ್ವಹಣೆ', parentLabel: 'ಪೋಷಕ ನಿರ್ವಹಣೆ',
+    dashboard: 'ಡ್ಯಾಶ್ ಬೋರ್ಡ್', directory: 'ನಿರ್ದೇಶನ', attendance: 'ಹಾಜರಾತಿ', assignments: 'ಕಾರ್ಯಗಳು',
+    timetable: 'ಸಮಯಪಟ್ಟಿ', leave: 'ರಜೆ', performance: 'ಕಾರ್ಯಕ್ಷಮತೆ',
+    salary: 'ವೇತನ', expenses: 'ವೆಚ್ಚ', documents: 'ದಾಖಲೆಗಳು', communication: 'ಸಂವಹನ',
+    analytics: 'ವಿಶ್ಲೇಷಣೆ', settings: 'ಸೆಟ್ಟಿಂಗ್ಗಳು', approvals: 'ಅನುಮೋದನೆಗಳು', roles: 'ಪಾತ್ರಗಳು ಮತ್ತು ಅನುಮತಿಗಳು',
+    reports: 'ವರದಿಗಳು', announcements: 'ಪ್ರಕಟಣೆಗಳು', audit: 'ಆಡಿಟ್ ಲಾಗ್', 'ai-assistant': 'AI ಸಹಾಯಕ',
+    admissions: 'ಪ್ರವೇಶಗಳ', subjects: 'ವಿಷಯಗಳು', examinations: 'ಪರೀಕ್ಷೆಗಳು', promotion: 'ಬಡ್ತಿ',
+    discipline: 'ಶಿಸ್ತು', health: 'ಆರೋಗ್ಯ', transport: 'ಸಾರಿಗೆ', mapping: 'ವಿದ್ಯಾರ್ಥಿ ನಕ್ಷೆ',
+    ptm: 'PTM', complaints: 'ದೂರುಗಳು', requests: 'ವಿನಂತಿಗಳು', notifications: 'ಅಧಿಸೂಚನೆಗಳು',
+  },
+  ui: {
+    add: 'ಸೇರಿಸಿ', create: 'ರಚಿಸಿ', save: 'ಉಳಿಸಿ', edit: 'ಸಂಪಾದಿಸಿ', delete: 'ಅಳಿಸಿ', cancel: 'ರದ್ದುಮಾಡಿ',
+    close: 'ಮುಚ್ಚಿ', search: 'ಹುಡುಕಿ', filter: 'ಫಿಲ್ಟರ್', view: 'ನೋಡಿ', back: 'ಹಿಂದೆ', next: 'ಮುಂದೆ',
+    name: 'ಹೆಸರು', email: 'ಇಮೇಲ್', phone: 'ಫೋನ್', role: 'ಪಾತ್ರ', status: 'ಸ್ಥಿತಿ',
+    date: 'ದಿನಾಂಕ', amount: 'ಮೊತ್ತ', active: 'ಸಕ್ರಿಯ', inactive: 'ನಿಷ್ಕ್ರಿಯ', total: 'ಒಟ್ಟು', submit: 'ಸಲ್ಲಿಸಿ',
+  },
+};
+const ml: Record<string, string | NestedTranslation> = {
+  app: { name: 'പ്രാസിനെറ്റ്', portal: 'മാനേജ്മെന്റ് പോർട്ടൽ', login: 'ലോഗിൻ', logout: 'ലോഗൗട്ട്', loading: 'ലോഡ് ചെയ്യുന്നു...', error: 'പിശ', success: 'വിജയ', submit: 'സമർപ്പിക്കുക', cancel: 'റദ്ദാക്കുക', send: 'അയയ്ക്കുക', save: 'സംഭരിക്കുക', delete: 'മായ്ക്കുക', edit: 'എഡിറ്റ്', back: 'പിന്നിലേക്ക്', noData: 'ഡാറ്റ ലഭ്യനല്ല' },
+  common: { or: 'അല്ലെങ്കിൽ', and: 'കൂടാതെ', to: 'വരെ', all: 'എല്ലാം', no: 'അല്ല', close: 'അടയ്ക്കുക', yes: 'ഉണ്ട്', confirm: 'താത്പര്യം ഉണ്ടോ?' },
+  nav: {
+    home: 'ഹോം', staff: 'ജീവനക്കാർ', student: 'വിദ്യാർത്ഥി', parent: 'രക്ഷിതാവ്',
+    staffLabel: 'ജീവനക്കാർ നിയമനം', studentLabel: 'വിദ്യാർത്ഥി മാനേജ്മെന്റ്', parentLabel: 'രക്ഷിതാവ് മാനേജ്മെന്റ്',
+    dashboard: 'ഡാഷ്ബോർഡ്', attendance: 'ഹാജർ', timetable: 'സമയപട്ടിക',
+    salary: 'ശമ്പളം', expenses: 'ചെലവ്', documents: 'പ്രമാണങ്ങൾ', communication: 'ആശയവിനിയമനം',
+    settings: 'ക്രമീകരണം', reports: 'റിപ്പോർട്ട്', announcements: 'അറിയിപ്പ്',
+    admissions: 'പ്രവേശനം', examinations: 'പരീക്ഷക', transport: 'ഗതാഗതം', health: 'ആരോഗ്യം', notifications: 'അറിയിപ്പുകൾ', leave: 'അവധി',
+  },
+  ui: {
+    add: 'ചേർക്കുക', create: 'സൃഷ്ടിക്കുക', save: 'സംരക്ഷിക്കുക', edit: 'എഡിറ്റ്', delete: 'മായ്ക്കുക', cancel: 'റദ്ദാക്കുക',
+    close: 'അടയ്ക്കുക', search: 'തിരയുക', filter: 'ഫിൽട്ടർ', view: 'കാണുക', back: 'പിന്നിലേക്ക്', next: 'അടുത്തത്',
+    name: 'പേര്', email: 'ഇമെയിൽ', phone: 'ഫോൺ', role: 'റോൾ', status: 'സ്റ്റാറ്റസ്',
+    date: 'തീയതി', amount: 'തുക', active: 'സജീവം', inactive: 'നിഷ്ക്രിയം', total: 'ആകെ', submit: 'സമർപ്പിക്കുക',
+  },
+};
+const pa: Record<string, string | NestedTranslation> = {
+  app: { name: 'ਪ੍ਰਾਸਿਨੇਟ', portal: 'ਪ੍ਰਬੰਧਨ ਪੋਰਟਲ', login: 'ਲਾਗਇਨ', logout: 'ਲਾਗਆਉਟ', search: 'ਖੋਜ', settings: 'ਸੈਟਿੰਗਾਂ', error: 'ਗਲਤੀ', success: 'ਸਫਲਤਾ', save: 'ਸੰਭਾਲੋ' },
+  nav: {
+    home: 'ਹੋਮ', staff: 'ਸਟਾਫ', student: 'ਵਿਦਿਆਰਥੀ', parent: 'ਮਾਪੇ',
+    staffLabel: 'ਸਟਾਫ ਪ੍ਰਬੰਧਨ', studentLabel: 'ਵਿਦਿਆਰਥੀ ਪ੍ਰਬੰਧਨ', parentLabel: 'ਮਾਪਿਆਂ ਪ੍ਰਬੰਧਨ',
+    dashboard: 'ਡੈਸ਼ਬੋਰਡ', attendance: 'ਹਾਜ਼ਰੀ', timetable: 'ਸਮਾਂ-ਪਤਰੀ', salary: 'ਤਨਖਾਹ', expenses: 'ਖਰਚੇ', reports: 'ਰਿਪੋਰਟਾਂ',
+    examinations: 'ਪ੍ਰੀਖਿਆਵਾਂ', transport: 'ਆਵਾਜਾਈ', settings: 'ਸੈਟਿੰਗਾਂ', announcements: 'ਘੋਸ਼ਣਾਵਾਂ', documents: 'ਦਸਤਾਵੇਜ਼', leave: 'ਛੁੱਟੀ',
+  },
+  ui: {
+    add: 'ਜੋੜੋ', create: 'ਬਣਾਓ', save: 'ਸੰਭਾਲੋ', edit: 'ਸੰਪਾਦਿਤ ਕਰੋ', delete: 'ਮਿਟਾਓ', cancel: 'ਰੱਦ ਕਰੋ', close: 'ਬੰਦ ਕਰੋ',
+    search: 'ਖੋਜ', filter: 'ਫਿਲਟਰ', view: 'ਦੇਖੋ', back: 'ਪਿੱਛੇ', next: 'ਅਗਲਾ', name: 'ਨਾਮ', email: 'ਈਮੇਲ', phone: 'ਫ਼ੋਨ',
+    role: 'ਭੂਮਿਕਾ', status: 'ਸਥਿਤੀ', date: 'ਮਿਤੀ', amount: 'ਰਕਮ', active: 'ਸਰਗਰਮ', inactive: 'ਨਿਕਰਮ', total: 'ਕੁੱਲ', submit: 'ਸਪਿਮ ਕਰੋ',
+  },
+};
+const or: Record<string, string | NestedTranslation> = {
+  app: { name: 'ପ୍ରାସିନେଟ', portal: 'ପ୍ରବନ୍ଧନ ପୋର୍ଟାଲ', login: 'ଲଗଇନ୍', logout: 'ଲଗଆଉଟ୍', error: 'ତ୍ରୁଟି', success: 'ସଫଳତା', search: 'ସନ୍ଧାନ' },
+  nav: {
+    home: 'ମୁଖ୍ୟପୃଷ୍ଠା', staff: 'ସ୍ଟାଫ', student: 'ଛାତ୍ର', parent: 'ଅଭିଭାବକ',
+    staffLabel: 'ସ୍ଟାଫ ପରିଚାଳନା', studentLabel: 'ଛାତ୍ର ପରିଚାଳନା', parentLabel: 'ଅଭିଭାବକ ପରିଚାଳନା',
+    dashboard: 'ଡ୍ୟାଶବୋର୍ଡ', attendance: 'ଉପସ୍ଥିତି', timetable: 'ସମୟସୂଚୀ', salary: 'ବେତନ', expenses: 'ଖର୍ଚ୍ଚ', reports: 'ବିବରଣୀ', examinations: 'ପରୀକ୍ଷା', announcements: 'ଘୋଷଣା', documents: 'ଦଲିଲ', leave: 'ଛୁଟି',
+  },
+  ui: {
+    add: 'ଯୋଗ କରନ୍ତୁ', create: 'ତିଆରି କରନ୍ତୁ', save: 'ସନ୍ଥକ୍ଷଣ କରନ୍ତୁ', edit: 'ସମ୍ପାଦନା କରନ୍ତୁ', delete: 'ବିଲୋପ କରନ୍ତୁ', cancel: 'ବାତିଲ', close: 'ବନ୍ଦ କରନ୍ତୁ',
+    search: 'ଖୋଜନ୍ତୁ', filter: 'ଫିଲ୍ଟର', view: 'ଦେଖନ୍ତୁ', back: 'ପଛକୁ', next: 'ପରବର୍ତ୍ତୀ', name: 'ନାମ', email: 'ଇମେଲ', phone: 'ଫୋନ୍',
+    role: 'ଭୂମିକା', status: 'ସ୍ଥିତି', date: 'ତାରିଖ', amount: 'ରାଶି', active: 'ସକ୍ରିୟ', inactive: 'ନିଷ୍କ୍ରିୟ', total: 'ମୋଟ', submit: 'ଜମା କରନ୍ତୁ',
+  },
+};
+const ur: Record<string, string | NestedTranslation> = {
+  app: { name: 'پراسینٹ', portal: 'مینجمنٹ پورٹل', login: 'لاگ ان', logout: 'لاگ آؤٹ', error: 'خرابی', success: 'کامیابی', search: 'تلاش', settings: 'ترتیبات' },
+  nav: {
+    home: 'ہوم', staff: 'اسٹاف', student: 'طالب علم', parent: 'والدین',
+    staffLabel: 'اسٹاف مینجمنٹ', studentLabel: 'طالب علم مینجمنٹ', parentLabel: 'والدین مینجمنٹ',
+    dashboard: 'ڈیش بورڈ', attendance: 'حاضری', timetable: 'ٹائم ٹیبل', salary: 'تنخواہ', expenses: 'اخراجات', reports: 'رپورٹیں', examinations: 'امتحانات', announcements: 'اعلانات', notifications: 'اطلاعات', leave: 'چھٹی',
+  },
+  ui: {
+    add: 'شامل کریں', create: 'بنائیں', save: 'محفوظ کریں', edit: 'ترمیم', delete: 'حذف کریں', cancel: 'منسوخ', close: 'بند کریں',
+    search: 'تلاش', filter: 'فلٹر', view: 'دیکھیں', back: 'واپس', next: 'اگلا', name: 'نام', email: 'ای میل', phone: 'فون',
+    role: 'کردار', status: 'حالت', date: 'تاریخ', amount: 'رقم', active: 'فعال', inactive: 'غیر فعال', total: 'کل', submit: 'جمع کریں',
+  },
+};
+const as: Record<string, string | NestedTranslation> = {
+  app: { name: 'প্রাসিনেট', portal: 'ব্যৱস্থাপনা প’ল', login: 'লগইন', logout: 'লগআউট', error: 'সত কাষ', success: 'সফল', search: 'সন্ধান', settings: 'ছেটিং' },
+  nav: {
+    home: 'মূখপাতা', staff: 'কৰ্মচাৰী', student: 'ছাত্ৰ', parent: 'অভিভাৱক',
+    staffLabel: 'কৰ্মচাৰী ব্যৱস্থাপনা', studentLabel: 'ছাত্ৰ ব্যৱস্থাপনা', parentLabel: 'অভিভাৱক ব্যৱস্থাপনা',
+    dashboard: 'ডেশ্ববোৰ্ড', attendance: 'উপস্থিতি', timetable: 'সময়সূচী', salary: 'দৰমহা', expenses: 'খৰচ', reports: 'বিবৰণী', examinations: 'পৰীক্ষা', announcements: 'ঘোষণা', documents: 'দলিল',
+  },
+  ui: {
+    add: 'যোগ কৰক', create: 'তৈৰি কৰক', save: 'সাঁচি ৰাখক', edit: 'সম্পাদনা', delete: 'মচক', cancel: 'বাতিল', close: 'বন্ধ কৰক',
+    search: 'সন্ধান', filter: 'ফিল্টাৰ', view: 'চাওক', back: 'পিছলৈ', next: 'আগলৈ', name: 'নাম', email: 'ইমেইল', phone: 'ফোন',
+    role: 'ভূমিকা', status: 'স্থিতি', date: 'তাৰিখ', amount: 'পৰিমাণ', active: 'সক্ৰিয়', inactive: 'নিষ্ক্রিয়', total: 'মুঠ', submit: 'জমা দিয়ক',
+  },
 };
 
 export const translations: Record<LanguageCode, Record<string, string | NestedTranslation>> = {
-  en, hi, ta, te, bn, mr, gu,
+  en, hi, ta, te, bn, mr, gu, kn, ml, pa, or, ur, as,
 };
 
 export function getNestedValue(obj: Record<string, string | NestedTranslation>, path: string): string {

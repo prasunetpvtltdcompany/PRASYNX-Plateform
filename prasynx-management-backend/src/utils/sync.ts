@@ -135,7 +135,7 @@ export async function notifyStaffAssignedToClass(orgId: string, classId: string,
     let userIds: string[] = [];
     if (mappedTeacherIds.length > 0) {
       const { data: teacherUsers } = await supabase
-        .from('teachers')
+        .from('staff_records')
         .select('user_id')
         .in('id', mappedTeacherIds)
         .eq('status', 'active');

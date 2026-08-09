@@ -13,7 +13,7 @@ interface TeacherMetrics {
 export class TeacherPerformanceService {
   async getTeachers(orgId: string) {
     const { data } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*, users!inner(full_name, email, phone)')
       .eq('organisation_id', orgId)
       .eq('status', 'active');
@@ -21,7 +21,7 @@ export class TeacherPerformanceService {
     return (data || []).map(t => ({
       id: t.id,
       fullName: t.full_name,
-      teacherCode: t.teacher_code,
+      teacherCode: t.staff_unique_id,
       email: t.email || t.users?.email,
       phone: t.phone || t.users?.phone,
       subject: t.subject,
@@ -56,7 +56,7 @@ export class TeacherPerformanceService {
 
   async analyzeTeacher(orgId: string, teacherId: string) {
     const { data: teacher } = await supabase
-      .from('teachers')
+      .from('staff_records')
       .select('*')
       .eq('id', teacherId)
       .eq('organisation_id', orgId)
@@ -123,7 +123,7 @@ export class TeacherPerformanceService {
       teacher: {
         id: teacher.id,
         fullName: teacher.full_name,
-        teacherCode: teacher.teacher_code,
+        teacherCode: teacher.staff_unique_id,
         subject: teacher.subject,
         qualification: teacher.qualification,
         joinDate: teacher.join_date,
@@ -191,7 +191,7 @@ export class TeacherPerformanceService {
   async getObservations(orgId: string, teacherId?: string) {
     let query = supabase
       .from('teacher_observations')
-      .select('*, teacher:teachers(full_name, subject)')
+      .select('*, teacher:staff_records(full_name, subject)')
       .eq('organisation_id', orgId)
       .order('observation_date', { ascending: false });
 
@@ -224,7 +224,7 @@ export class TeacherPerformanceService {
   async getFeedbackSummary(orgId: string, teacherId?: string) {
     let query = supabase
       .from('teacher_student_feedback')
-      .select('*, teacher:teachers(full_name), student:students(full_name)')
+      .select('*, teacher:staff_records(full_name), student:students(full_name)')
       .eq('organisation_id', orgId);
 
     if (teacherId) query = query.eq('teacher_id', teacherId);
@@ -376,7 +376,7 @@ export class TeacherPerformanceService {
   async getPerformanceReviews(orgId: string, teacherId?: string) {
     let query = supabase
       .from('teacher_performance_reviews')
-      .select('*, teacher:teachers(full_name, subject), reviewer:users(full_name)')
+      .select('*, teacher:staff_records(full_name, subject), reviewer:users(full_name)')
       .eq('organisation_id', orgId)
       .order('created_at', { ascending: false });
 

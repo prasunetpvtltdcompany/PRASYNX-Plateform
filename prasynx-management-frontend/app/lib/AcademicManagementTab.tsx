@@ -405,7 +405,7 @@ export default function AcademicManagementTab() {
             >
               <option value="">Choose Teacher...</option>
               {(teachers.data || []).map((t: any) => (
-                <option key={t.id} value={t.id}>{t.full_name} ({t.teacher_code})</option>
+                <option key={t.id} value={t.id}>{t.full_name} ({t.staff_unique_id})</option>
               ))}
             </select>
           </div>
@@ -424,7 +424,7 @@ export default function AcademicManagementTab() {
               <div>
                 <h3 className="text-sm font-bold text-gray-900">{activeTeacher?.full_name}</h3>
                 <p className="text-xs text-gray-500 mt-1">
-                  Code: {activeTeacher?.teacher_code} &bull; Dept: {activeTeacher?.department || 'Academics'} &bull; Subject: {activeTeacher?.subject || 'N/A'}
+                  Code: {activeTeacher?.staff_unique_id} &bull; Dept: {activeTeacher?.department || 'Academics'} &bull; Subject: {activeTeacher?.subject || 'N/A'}
                 </p>
               </div>
               <div className="flex gap-4">
@@ -482,7 +482,7 @@ export default function AcademicManagementTab() {
         columns={[
           { key: 'class', label: 'Class', render: (r: any) => r.class?.name || '-' },
           { key: 'teacher', label: 'Teacher', render: (r: any) => r.teacher?.full_name || '-' },
-          { key: 'teacher_code', label: 'Code', render: (r: any) => r.teacher?.teacher_code || '-' },
+          { key: 'staff_unique_id', label: 'Code', render: (r: any) => r.teacher?.staff_unique_id || '-' },
           { key: 'actions', label: '', render: (r: any) => (
             <div className="flex gap-1">
               <button onClick={async () => { if (confirm('Remove class teacher?')) { await academicMgmtApi.removeClassTeacher(r.class_id); classTeachers.refetch(); toast.success('Removed'); } }} className="p-1.5 rounded-lg hover:bg-red-50 text-red-600"><Trash2 size={14} /></button>

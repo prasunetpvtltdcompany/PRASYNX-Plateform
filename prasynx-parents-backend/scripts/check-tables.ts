@@ -11,7 +11,7 @@ const supabase = createClient(
 );
 
 async function main() {
-  const tables = ['parents', 'students', 'parent_student_links', 'class_student_map', 'class_subject_teacher_map', 'teachers'];
+  const tables = ['parents', 'students', 'parent_student_links', 'class_student_map', 'class_subject_teacher_map', 'staff_records'];
   for (const t of tables) {
     const { data, error } = await supabase.from(t as any).select('*').limit(1);
     if (error) {

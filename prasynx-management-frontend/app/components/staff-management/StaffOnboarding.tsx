@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
@@ -11,7 +12,12 @@ import {
   Clock, TrendingUp, ArrowRight, FileText, BookOpen, Building2
 } from 'lucide-react';
 
-const TABS = ['Active Onboarding', 'Onboarding Templates', 'Completed'];
+const TABS = ['Active Onboarding', 'Onboarding Templates', 'Completed'] as const;
+type TabKey = typeof TABS[number];
+
+const TAB_TRANSLATIONS: Record<TabKey, string> = {
+  'Active Onboarding': 'mod.activeOnboarding', 'Onboarding Templates': 'mod.onboardingTemplates', Completed: 'mod.completed',
+};
 
 function ProgressBar({ value }: { value: number }) {
   const pct = Math.min(Math.max(value || 0), 100);
@@ -26,6 +32,7 @@ function ProgressBar({ value }: { value: number }) {
 }
 
 export function StaffOnboarding() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState(0);
 
   const onboarding = useApi(() => enterpriseStaffApi.getOnboarding(), []);
@@ -62,7 +69,7 @@ export function StaffOnboarding() {
   return (
     <div className="w-full min-w-0">
       <div className="page-header">
-        <h1>Staff Onboarding</h1>
+        <h1>{t('mod.staffOnboarding')}</h1>
         <p>Manage staff onboarding workflows, templates, and completed onboarding records</p>
       </div>
 
@@ -71,7 +78,7 @@ export function StaffOnboarding() {
         {TABS.map((tab, i) => (
           <button key={tab} onClick={() => setActiveTab(i)}
             className={`px-4 py-2 rounded-lg text-xs font-semibold transition-all ${activeTab === i ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-            {tab}
+            {t(TAB_TRANSLATIONS[tab])}
           </button>
         ))}
       </div>

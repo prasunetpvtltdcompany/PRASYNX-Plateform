@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -14,9 +15,9 @@ import {
 } from 'lucide-react';
 
 const TABS = [
-  { key: 'documents', label: 'Contracts & Documents', icon: FileText },
-  { key: 'certifications', label: 'Certifications', icon: Award },
-  { key: 'training', label: 'Training Programs', icon: GraduationCap },
+  { key: 'documents', labelKey: 'mod.documents', icon: FileText },
+  { key: 'certifications', labelKey: 'mod.certifications', icon: Award },
+  { key: 'training', labelKey: 'mod.trainingPrograms', icon: GraduationCap },
 ];
 
 function getStatusBadge(status: string) {
@@ -33,6 +34,7 @@ function formatDate(d: string) {
 }
 
 export function WorkforceDocuments() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('documents');
   const [search, setSearch] = useState('');
   const [showUpload, setShowUpload] = useState(false);
@@ -82,7 +84,7 @@ export function WorkforceDocuments() {
   return (
     <div className="w-full min-w-0">
       <div className="page-header">
-        <h1>Staff Documents</h1>
+        <h1>{t('mod.staffDocuments')}</h1>
         <p>Manage contracts, ID cards, certificates, and employment documents</p>
       </div>
 
@@ -97,7 +99,7 @@ export function WorkforceDocuments() {
               {TABS.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  <tab.icon size={12} /> {tab.label}
+                  <tab.icon size={12} /> {t(tab.labelKey)}
                 </button>
               ))}
             </div>

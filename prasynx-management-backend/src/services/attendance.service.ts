@@ -91,7 +91,7 @@ export class AttendanceService {
   }
 
   async getStudents(orgId: string, filters?: { class_id?: string; section?: string; search?: string }) {
-    let query = supabase.from('students').select('id, full_name, roll_number, admission_number, section, photo_url, status')
+    let query = supabase.from('students').select('id, full_name, roll_number, admission_number, section_id, sections(name), photo_url, status')
       .eq('organisation_id', orgId).eq('status', 'active');
     if (filters?.class_id) {
       const { data: mapping } = await supabase.from('class_student_map').select('student_id').eq('class_id', filters.class_id);
@@ -99,7 +99,17 @@ export class AttendanceService {
       if (ids.length === 0) return [];
       query = query.in('id', ids);
     }
-    if (filters?.section) query = query.eq('section', filters.section);
+    if (filters?.section) {
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(filters.section);
+      if (isUuid) {
+        query = query.eq('section_id', filters.section);
+      } else {
+        const { data: secs } = await supabase.from('sections').select('id').eq('name', filters.section).eq('organisation_id', orgId);
+        const ids = secs?.map(s => s.id) || [];
+        if (ids.length === 0) return [];
+        query = query.in('section_id', ids);
+      }
+    }
     if (filters?.search) {
       const s = `%${filters.search}%`;
       query = query.or(`full_name.ilike.${s},roll_number.ilike.${s},admission_number.ilike.${s}`);
@@ -114,7 +124,7 @@ export class AttendanceService {
     student_id?: string; search?: string; page?: number; limit?: number;
   }) {
     let query = supabase.from('attendance_records')
-      .select('*, student:students(id, full_name, roll_number, admission_number, section, photo_url), teacher:teachers(id, full_name), subject:subjects(id, name, code)', { count: 'exact' })
+      .select('*, student:students(id, full_name, roll_number, admission_number, section_id, photo_url, sections(name)), teacher:staff_records(id, full_name), subject:subjects(id, name, code)', { count: 'exact' })
       .eq('organisation_id', orgId);
 
     if (filters.class_id) query = query.eq('class_id', filters.class_id);
@@ -209,8 +219,8 @@ export class AttendanceService {
   async getDailySummary(orgId: string, date?: string) {
     const today = date || new Date().toISOString().split('T')[0];
     const [studentsRes, recordsRes, classesRes] = await Promise.all([
-      supabase.from('students').select('id, section').eq('organisation_id', orgId).eq('status', 'active'),
-      supabase.from('attendance_records').select('*, student:students(full_name, roll_number, section)')
+      supabase.from('students').select('id, section_id, sections(name)').eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('attendance_records').select('*, student:students(full_name, roll_number, section_id, sections(name))')
         .eq('organisation_id', orgId).eq('date', today),
       supabase.from('classes').select('id, name, section').eq('organisation_id', orgId).eq('status', 'active'),
     ]);
@@ -255,7 +265,7 @@ export class AttendanceService {
 
   async getStudentHistory(studentId: string, limit = 100) {
     const { data } = await supabase.from('attendance_records')
-      .select('*, teacher:teachers(id, full_name)')
+      .select('*, teacher:staff_records(id, full_name)')
       .eq('student_id', studentId)
       .order('date', { ascending: false })
       .limit(limit);
@@ -283,7 +293,7 @@ export class AttendanceService {
     const from = filters?.from || this.getMonthStart(new Date().toISOString().split('T')[0]);
     const to = filters?.to || new Date().toISOString().split('T')[0];
 
-    let query = supabase.from('attendance_records').select('*, student:students(section)')
+    let query = supabase.from('attendance_records').select('*, student:students(section_id, sections(name))')
       .eq('organisation_id', orgId).gte('date', from).lte('date', to);
     if (filters?.class_id) query = query.eq('class_id', filters.class_id);
     const { data } = await query;
@@ -324,7 +334,7 @@ export class AttendanceService {
       if (r.status === 'present') classWise[cls].present++;
 
       // Section-wise
-      const sec = (r.student as any)?.section || 'Unknown';
+      const sec = (r.student as any)?.sections?.name || 'Unknown';
       if (!sectionWise[sec]) sectionWise[sec] = { section: sec, present: 0, total: 0 };
       sectionWise[sec].total++;
       if (r.status === 'present') sectionWise[sec].present++;
@@ -423,7 +433,7 @@ export class AttendanceService {
 
   async getRiskFlags(orgId: string, filters?: { risk_level?: string }) {
     let query = supabase.from('attendance_risk_flags')
-      .select('*, student:students(id, full_name, roll_number, admission_number, section, photo_url)')
+      .select('*, student:students(id, full_name, roll_number, admission_number, section_id, photo_url, sections(name))')
       .eq('organisation_id', orgId);
     if (filters?.risk_level) query = query.eq('risk_level', filters.risk_level);
     const { data } = await query.order('dropout_probability', { ascending: false });
@@ -433,8 +443,8 @@ export class AttendanceService {
   async getAiInsights(orgId: string) {
     const [recordsRes, studentsRes, riskRes, settingsRes] = await Promise.all([
       supabase.from('attendance_records').select('student_id, status, date').eq('organisation_id', orgId),
-      supabase.from('students').select('id, full_name, section, photo_url').eq('organisation_id', orgId).eq('status', 'active'),
-      supabase.from('attendance_risk_flags').select('*, student:students(id, full_name, section, photo_url)')
+      supabase.from('students').select('id, full_name, section_id, photo_url, sections(name)').eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('attendance_risk_flags').select('*, student:students(id, full_name, section_id, photo_url, sections(name))')
         .eq('organisation_id', orgId).order('dropout_probability', { ascending: false }).limit(20),
       supabase.from('attendance_settings').select('*').eq('organisation_id', orgId).single(),
     ]);
@@ -511,8 +521,8 @@ export class AttendanceService {
     const from = filters?.from || new Date(new Date(to).setMonth(new Date(to).getMonth() - 1)).toISOString().split('T')[0];
 
     const [studentsRes, recordsRes, classesRes] = await Promise.all([
-      supabase.from('students').select('id, full_name, roll_number, admission_number, section').eq('organisation_id', orgId).eq('status', 'active'),
-      supabase.from('attendance_records').select('*, student:students(id, full_name, roll_number, section)')
+      supabase.from('students').select('id, full_name, roll_number, admission_number, section_id, sections(name)').eq('organisation_id', orgId).eq('status', 'active'),
+      supabase.from('attendance_records').select('*, student:students(id, full_name, roll_number, section_id, sections(name))')
         .eq('organisation_id', orgId).gte('date', from).lte('date', to),
       supabase.from('classes').select('id, name, section').eq('organisation_id', orgId).eq('status', 'active'),
     ]);

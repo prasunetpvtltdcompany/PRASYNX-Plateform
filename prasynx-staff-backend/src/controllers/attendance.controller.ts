@@ -7,7 +7,7 @@ import { AuthRequest } from '../types';
 export class AttendanceController {
   async markAttendance(req: AuthRequest, res: Response) {
     if (!req.user) return sendError(res, 'Authentication required.', 401);
-    const { data: teacher } = await supabase.from('teachers').select('id').eq('user_id', req.user.userId).maybeSingle();
+    const { data: teacher } = await supabase.from('staff_records').select('id').eq('user_id', req.user.userId).maybeSingle();
     if (!teacher) return sendError(res, 'Teacher profile not found.', 404);
     const data = await attendanceService.markAttendance({ ...req.body, teacher_id: teacher.id });
     sendSuccess(res, data);
@@ -15,7 +15,7 @@ export class AttendanceController {
 
   async bulkAttendance(req: AuthRequest, res: Response) {
     if (!req.user) return sendError(res, 'Authentication required.', 401);
-    const { data: teacher } = await supabase.from('teachers').select('id').eq('user_id', req.user.userId).maybeSingle();
+    const { data: teacher } = await supabase.from('staff_records').select('id').eq('user_id', req.user.userId).maybeSingle();
     if (!teacher) return sendError(res, 'Teacher profile not found.', 404);
     const bodyTeacherId = req.body.teacher_id;
     if (bodyTeacherId && bodyTeacherId !== teacher.id) {

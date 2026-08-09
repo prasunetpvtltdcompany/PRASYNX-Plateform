@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
+// @ts-ignore: Allow side-effect CSS import without type declarations
 import './globals.css';
 import { LanguageProvider } from './i18n/LanguageProvider';
 import { AuthProvider } from './contexts/AuthContext';
@@ -14,10 +15,15 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: 'Student Portal | Prasunet',
-  description: 'Student portal for Prasunet. Track academics, attendance, assignments, exams, and more.',
+  title: 'Student Portal | Prasynx',
+  description: 'Student portal. Track academics, attendance, assignments, exams, and more.',
   manifest: '/manifest.json',
-  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Prasunet' },
+icons: {
+    icon: "/icons/fav.png",        // or picon.svg if you only have SVG
+    shortcut: "/icons/fav.png",
+    apple: "/icons/fav.png",
+  },
+  appleWebApp: { capable: true, statusBarStyle: 'default', title: 'Prasynx' },
 };
 
 export const viewport: Viewport = {
@@ -30,13 +36,6 @@ export const viewport: Viewport = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <head>
-        <link rel="icon" type="image/svg+xml" href="/icons/icon-512.svg" />
-        <link rel="apple-touch-icon" href="/icons/icon-512.svg" />
-        <meta name="apple-mobile-web-app-capable" content="yes" />
-        <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="application-name" content="Prasunet" />
-      </head>
       <body>
         <AuthProvider>
           <LanguageProvider>{children}</LanguageProvider>

@@ -4,6 +4,7 @@ import { useState, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import {
@@ -13,9 +14,9 @@ import {
 import { toast } from 'sonner';
 
 const TABS = [
-  { key: 'messages', label: 'Messages', icon: MessageSquare },
-  { key: 'announcements', label: 'Announcements', icon: Megaphone },
-  { key: 'broadcast', label: 'Staff Broadcast', icon: Bell },
+  { key: 'messages', labelKey: 'mod.messages', icon: MessageSquare },
+  { key: 'announcements', labelKey: 'mod.announcements', icon: Megaphone },
+  { key: 'broadcast', labelKey: 'mod.staffBroadcast', icon: Bell },
 ];
 
 function KpiCard({ icon: Icon, label, value, color, bg }: any) {
@@ -29,6 +30,7 @@ function KpiCard({ icon: Icon, label, value, color, bg }: any) {
 }
 
 export function WorkforceCommunication() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('messages');
   const [search, setSearch] = useState('');
   const [showCompose, setShowCompose] = useState(false);
@@ -78,15 +80,15 @@ export function WorkforceCommunication() {
   return (
     <div className="w-full min-w-0">
       <div className="page-header">
-        <h1>Communication Center</h1>
+        <h1>{t('mod.communicationCenter')}</h1>
         <p>Send messages, announcements, and broadcasts to all staff</p>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
-        <KpiCard icon={MessageSquare} label="Messages" value={msgList.length} color="#6D4CFF" bg="#F0EDFF" />
-        <KpiCard icon={Megaphone} label="Announcements" value={annList.length} color="#F59E0B" bg="#FFFBEB" />
-        <KpiCard icon={Bell} label="Active Broadcasts" value={annList.filter((a: any) => (a.status || '').toLowerCase() === 'active').length} color="#3B82F6" bg="#EFF6FF" />
-        <KpiCard icon={Users} label="Staff Reach" value={staffList.length} color="#10B981" bg="#ECFDF5" />
+        <KpiCard icon={MessageSquare} label={t('mod.messages')} value={msgList.length} color="#6D4CFF" bg="#F0EDFF" />
+        <KpiCard icon={Megaphone} label={t('mod.announcements')} value={annList.length} color="#F59E0B" bg="#FFFBEB" />
+        <KpiCard icon={Bell} label={t('mod.activeBroadcasts')} value={annList.filter((a: any) => (a.status || '').toLowerCase() === 'active').length} color="#3B82F6" bg="#EFF6FF" />
+        <KpiCard icon={Users} label={t('mod.staffReach')} value={staffList.length} color="#10B981" bg="#ECFDF5" />
       </div>
 
       <Card className="p-4 mb-6">
@@ -100,7 +102,7 @@ export function WorkforceCommunication() {
               {TABS.map(tab => (
                 <button key={tab.key} onClick={() => setActiveTab(tab.key)}
                   className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-[10px] font-semibold transition-all ${activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
-                  <tab.icon size={12} /> {tab.label}
+                  <tab.icon size={12} /> {t(tab.labelKey)}
                 </button>
               ))}
             </div>

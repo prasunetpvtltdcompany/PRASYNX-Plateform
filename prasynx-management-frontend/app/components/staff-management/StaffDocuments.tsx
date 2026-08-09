@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useApi, LoadingSkeleton, ErrorState, EmptyState } from '../../lib/useApi';
 import { enterpriseStaffApi } from '../../lib/dataService';
+import { useLanguage } from '../../i18n/LanguageProvider';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
@@ -13,9 +14,9 @@ import {
 } from 'lucide-react';
 
 const TABS = [
-  { key: 'documents', label: 'All Documents', icon: FileText },
-  { key: 'certifications', label: 'Certifications', icon: Award },
-  { key: 'training', label: 'Training Programs', icon: GraduationCap },
+  { key: 'documents', labelKey: 'mod.allDocuments', icon: FileText },
+  { key: 'certifications', labelKey: 'mod.certifications', icon: Award },
+  { key: 'training', labelKey: 'mod.trainingPrograms', icon: GraduationCap },
 ];
 
 function getStatusBadge(status: string) {
@@ -39,6 +40,7 @@ function formatDate(d: string) {
 }
 
 export function StaffDocuments() {
+  const { t } = useLanguage();
   const [activeTab, setActiveTab] = useState('documents');
   const [search, setSearch] = useState('');
 
@@ -80,7 +82,7 @@ export function StaffDocuments() {
               className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-semibold transition-all ${
                 activeTab === tab.key ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-500 hover:text-gray-700'
               }`}>
-              <tab.icon size={14} /> {tab.label}
+              <tab.icon size={14} /> {t(tab.labelKey)}
             </button>
           ))}
         </div>

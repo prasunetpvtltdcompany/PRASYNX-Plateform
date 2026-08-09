@@ -145,6 +145,8 @@ export const staffApi = {
     apiClient.delete<any>(`/management/staff/assignments/${type}/${id}`).then(handleResponse),
   getTasks: (staffId: string) =>
     apiClient.get<any>(`/management/staff/${staffId}/tasks`).then(handleResponse),
+  getAllTasks: () =>
+    apiClient.get<any[]>('/management/staff-tasks').then(handleResponse),
   addTask: (staffId: string, data: any) =>
     apiClient.post<any>(`/management/staff/${staffId}/tasks`, { ...data, organisation_id: orgId() }).then(handleResponse),
   updateTask: (taskId: string, data: any) =>
@@ -167,18 +169,36 @@ export const staffApi = {
     apiClient.get<any>(`/management/staff/${staffId}/performance`).then(handleResponse),
   addPerformance: (staffId: string, data: any) =>
     apiClient.post<any>(`/management/staff/${staffId}/performance`, { ...data, organisation_id: orgId() }).then(handleResponse),
+  getAllPerformance: () =>
+    apiClient.get<any[]>(`/management/staff-performance`).then(handleResponse),
   getLeaves: (staffId: string) =>
     apiClient.get<any>(`/management/staff/${staffId}/leaves`).then(handleResponse),
+  getAllLeaves: () =>
+    apiClient.get<any[]>(`/management/staff-leaves`).then(handleResponse),
   addLeave: (staffId: string, data: any) =>
     apiClient.post<any>(`/management/staff/${staffId}/leaves`, { ...data, organisation_id: orgId() }).then(handleResponse),
   updateLeaveStatus: (id: string, status: string) =>
     apiClient.put<any>(`/management/staff/leaves/${id}`, { status }).then(handleResponse),
   getDocuments: (staffId: string) =>
     apiClient.get<any>(`/management/staff/${staffId}/documents`).then(handleResponse),
+  getAllDocuments: () =>
+    apiClient.get<any[]>(`/management/documents`).then(handleResponse),
   addDocument: (staffId: string, data: any) =>
     apiClient.post<any>(`/management/staff/${staffId}/documents`, { ...data, organisation_id: orgId() }).then(handleResponse),
   updateDocumentStatus: (id: string, status: string) =>
     apiClient.put<any>(`/management/staff/documents/${id}/status`, { status }).then(handleResponse),
+  getSalary: (staffId: string) =>
+    apiClient.get<any>(`/management/staff/${staffId}/salary`).then(handleResponse),
+  updateSalary: (staffId: string, data: any) =>
+    apiClient.put<any>(`/management/staff/${staffId}/salary`, { ...data, organisation_id: orgId() }).then(handleResponse),
+  createPayslip: (staffId: string, data: any) =>
+    apiClient.post<any>(`/management/staff/${staffId}/salary/payslip`, { ...data, organisation_id: orgId() }).then(handleResponse),
+  updatePayslipStatus: (id: string, status: string) =>
+    apiClient.put<any>(`/management/staff/payslips/${id}/status`, { status }).then(handleResponse),
+  getOrgPayslips: () =>
+    apiClient.get<any>(`/management/staff/payslips/org/${orgId()}`).then(handleResponse),
+  getOrgSalaries: () =>
+    apiClient.get<any>(`/management/staff/salaries/org/${orgId()}`).then(handleResponse),
   getMessages: (staffId: string) =>
     apiClient.get<any>(`/management/staff/${staffId}/messages`).then(handleResponse),
   getActivities: (staffId: string) =>
@@ -260,9 +280,10 @@ export const subjectApi = {
 
 // ==================== TIMETABLE ====================
 export const timetableApi = {
-  getAll: (params?: { class_id?: string; teacher_id?: string; organisation_id?: string }) => {
+  getAll: (params?: { class_id?: string; section_id?: string; teacher_id?: string; organisation_id?: string }) => {
     const query = new URLSearchParams();
     if (params?.class_id) query.set('class_id', params.class_id);
+    if (params?.section_id) query.set('section_id', params.section_id);
     if (params?.teacher_id) query.set('teacher_id', params.teacher_id);
     if (params?.organisation_id) query.set('organisation_id', params.organisation_id);
     const qs = query.toString();
@@ -284,6 +305,10 @@ export const timetableApi = {
     apiClient.get<any[]>(`/management/timetable/teachers-list/${orgId()}`).then(handleResponse),
   getClasses: () =>
     apiClient.get<any[]>(`/management/timetable/classes-list/${orgId()}`).then(handleResponse),
+  getSections: (classId?: string) => {
+    const qs = classId ? `?class_id=${encodeURIComponent(classId)}` : '';
+    return apiClient.get<any[]>(`/management/timetable/sections-list/${orgId()}${qs}`).then(handleResponse);
+  },
   getSubjects: () =>
     apiClient.get<any[]>(`/management/timetable/subjects-list/${orgId()}`).then(handleResponse),
   checkConflicts: (params: { teacher_id: string; day_of_week: number; start_time: string; end_time: string; exclude_id?: string }) => {
@@ -377,6 +402,27 @@ export const payrollApiV2 = {
     apiClient.get<any>(`/v2/payroll/reports/${orgId()}${type ? `?type=${type}` : ''}`).then(handleResponse),
   getSidebar: () =>
     apiClient.get<any>(`/v2/payroll/sidebar/${orgId()}`).then(handleResponse),
+};
+
+// ==================== STAFF EXPENSES ====================
+export const staffExpensesApi = {
+  getExpenses: (params?: { category?: string; status?: string; from?: string; to?: string }) => {
+    const q = new URLSearchParams();
+    if (params?.category) q.set('category', params.category);
+    if (params?.status) q.set('status', params.status);
+    if (params?.from) q.set('from', params.from);
+    if (params?.to) q.set('to', params.to);
+    const qs = q.toString();
+    return apiClient.get<any[]>(`/v2/staff-expenses/${orgId()}${qs ? `?${qs}` : ''}`).then(handleResponse);
+  },
+  getSummary: () =>
+    apiClient.get<any>(`/v2/staff-expenses/summary/${orgId()}`).then(handleResponse),
+  createExpense: (data: any) =>
+    apiClient.post<any>(`/v2/staff-expenses/${orgId()}`, data).then(handleResponse),
+  updateExpense: (id: string, data: any) =>
+    apiClient.put<any>(`/v2/staff-expenses/${id}`, data).then(handleResponse),
+  deleteExpense: (id: string) =>
+    apiClient.delete<any>(`/v2/staff-expenses/${id}`).then(handleResponse),
 };
 
 export const payrollApi = {
@@ -623,6 +669,12 @@ export const announcementApi = {
     apiClient.get<any[]>(`/management/announcements/${orgId()}`).then(handleResponse),
   create: (data: any) =>
     apiClient.post<any>('/management/announcements', { ...data, organisation_id: orgId() }).then(handleResponse),
+  update: (id: string, data: any) =>
+    apiClient.put<any>(`/management/announcements/${id}`, data).then(handleResponse),
+  remove: (id: string) =>
+    apiClient.delete<any>(`/management/announcements/${id}`).then(handleResponse),
+  draft: (data: any) =>
+    apiClient.post<any>('/management/announcements/draft', data).then(handleResponse),
 };
 
 // ==================== EVENTS ====================
@@ -852,6 +904,44 @@ export const healthApi = {
     apiClient.post<any>('/management/health/emergency', { ...data, organisation_id: orgId() }).then(handleResponse),
   createWellnessRecord: (data: any) =>
     apiClient.post<any>('/management/health/wellness', { ...data, organisation_id: orgId() }).then(handleResponse),
+};
+
+// ==================== HEALTH (V4) ====================
+export const healthApiV4 = {
+  getDashboard: () =>
+    apiClient.get<any>(`/v4/health/dashboard/${orgId()}`).then(handleResponse),
+  getStudents: (search?: string) => {
+    const query = search ? `?search=${encodeURIComponent(search)}` : '';
+    return apiClient.get<any[]>(`/v4/health/students/${orgId()}${query}`).then(handleResponse);
+  },
+  getRecords: (params?: any) => {
+    const clean: Record<string, string> = {};
+    Object.entries(params || {}).forEach(([k, v]: [string, any]) => {
+      if (v !== undefined && v !== null && v !== '') clean[k] = String(v);
+    });
+    const query = new URLSearchParams(clean).toString();
+    return apiClient.get<any[]>(`/v4/health/records/${orgId()}${query ? `?${query}` : ''}`).then(handleResponse);
+  },
+  createRecord: (data: any) =>
+    apiClient.post<any>(`/v4/health/records/${orgId()}`, data).then(handleResponse),
+  getVaccinations: (student_id?: string) => {
+    const query = student_id ? `?student_id=${student_id}` : '';
+    return apiClient.get<any[]>(`/v4/health/vaccinations/${orgId()}${query}`).then(handleResponse);
+  },
+  createVaccination: (data: any) =>
+    apiClient.post<any>(`/v4/health/vaccinations/${orgId()}`, data).then(handleResponse),
+  getMedicalRecords: (student_id?: string) => {
+    const query = student_id ? `?student_id=${student_id}` : '';
+    return apiClient.get<any[]>(`/v4/health/medical-records/${orgId()}${query}`).then(handleResponse);
+  },
+  createMedicalRecord: (data: any) =>
+    apiClient.post<any>(`/v4/health/medical-records/${orgId()}`, data).then(handleResponse),
+  getEmergencyContacts: () =>
+    apiClient.get<any[]>(`/v4/health/emergency/${orgId()}`).then(handleResponse),
+  getStudentProfile: (student_id: string) =>
+    apiClient.get<any>(`/v4/health/student/${orgId()}/${student_id}`).then(handleResponse),
+  getAiInsights: () =>
+    apiClient.get<any>(`/v4/health/ai-insights/${orgId()}`).then(handleResponse),
 };
 
 // ==================== EXTRACURRICULAR ====================
@@ -1381,6 +1471,10 @@ export const parentApi = {
     apiClient.post<any>('/management/link-parent-student', { ...data, organisation_id: orgId() }).then(handleResponse),
   create: (data: any) =>
     apiClient.post<any>('/management/parents', { ...data, organisation_id: orgId() }).then(handleResponse),
+  update: (id: string, data: any) =>
+    apiClient.put<any>(`/management/parents/${id}`, { ...data, organisation_id: orgId() }).then(handleResponse),
+  remove: (id: string) =>
+    apiClient.delete<any>(`/management/parents/${id}?organisation_id=${orgId()}`).then(handleResponse),
 };
 
 // ==================== PART-TIME JOBS ====================
@@ -1819,6 +1913,8 @@ export const examApiV2 = {
     apiClient.post<any>(`/v2/exams/results/${examId}/publish`).then(handleResponse),
   lockResults: (examId: string) =>
     apiClient.post<any>(`/v2/exams/results/${examId}/lock`).then(handleResponse),
+  unlockResults: (examId: string) =>
+    apiClient.post<any>(`/v2/exams/results/${examId}/unlock`).then(handleResponse),
 
   getStudentPerformance: (studentId: string) =>
     apiClient.get<any>(`/v2/exams/performance/${orgId()}/${studentId}`).then(handleResponse),
@@ -2270,6 +2366,30 @@ export const promotionApiV4 = {
   getReport: () => apiClient.get<any>(`/v4/promotion/report/${orgId()}`).then(handleResponse),
 };
 
+// ==================== DISCIPLINE (V4) ====================
+export const disciplineApiV4 = {
+  getIncidents: (params?: any) => {
+    const clean: Record<string, string> = {};
+    Object.entries(params || {}).forEach(([k, v]: [string, any]) => {
+      if (v !== undefined && v !== null && v !== '') clean[k] = String(v);
+    });
+    const query = new URLSearchParams(clean).toString();
+    return apiClient.get<any[]>(`/v4/discipline/list/${orgId()}${query ? `?${query}` : ''}`).then(handleResponse);
+  },
+  getIncident: (id: string) =>
+    apiClient.get<any>(`/v4/discipline/${orgId()}/${id}`).then(handleResponse),
+  createIncident: (data: any) =>
+    apiClient.post<any>(`/v4/discipline/create/${orgId()}`, data).then(handleResponse),
+  uploadEvidence: (file: string) =>
+    apiClient.post<any>(`/v4/discipline/upload-evidence/${orgId()}`, { file }).then(handleResponse),
+  updateIncident: (id: string, data: any) =>
+    apiClient.put<any>(`/v4/discipline/update/${orgId()}/${id}`, data).then(handleResponse),
+  deleteIncident: (id: string) =>
+    apiClient.delete<any>(`/v4/discipline/delete/${orgId()}/${id}`).then(handleResponse),
+  getDashboard: () =>
+    apiClient.get<any>(`/v4/discipline/dashboard/${orgId()}`).then(handleResponse),
+};
+
 // ==================== MARKS / RESULTS (V4) ====================
 export const marksApiV4 = {
   getExamResults: (examId: string) => apiClient.get<any[]>(`/v4/marks/exam/${examId}`).then(handleResponse),
@@ -2339,10 +2459,18 @@ export const credentialMgmtApi = {
 export const staffAttendanceApi = {
   getAll: (date: string) =>
     apiClient.get<any[]>(`/wos/staff-attendance?date=${date}`).then(handleResponse),
+  getForStaff: (staffId: string, month: string) =>
+    apiClient.get<any[]>(`/wos/staff-attendance/${staffId}?month=${month}`).then(handleResponse),
   save: (date: string, records: any[]) =>
     apiClient.post<any>('/wos/staff-attendance', { date, records }).then(handleResponse),
   updateRecord: (id: string, data: any) =>
     apiClient.put<any>(`/wos/staff-attendance/${id}`, data).then(handleResponse),
+  deleteRecord: (id: string) =>
+    apiClient.delete<any>(`/wos/staff-attendance/${id}`).then(handleResponse),
+  getMonthly: (month: string) =>
+    apiClient.get<any>(`/wos/staff-attendance/monthly?month=${month}`).then(handleResponse),
+  getDashboardAnalytics: (days: number = 14) =>
+    apiClient.get<any>(`/wos/staff-dashboard-analytics?days=${days}`).then(handleResponse),
 };
 
 // ==================== ENTERPRISE STAFF MANAGEMENT (Workforce) ====================
@@ -2445,16 +2573,6 @@ export const enterpriseStaffApi = {
     apiClient.get<any>(`/workforce/leaves/balance/${orgId()}/${staffId}`).then(handleResponse),
   getLeaveAnalytics: () =>
     apiClient.get<any>(`/workforce/leaves/analytics/${orgId()}`).then(handleResponse),
-
-  // Task Management
-  getTaskManagement: () =>
-    apiClient.get<any>(`/workforce/tasks/${orgId()}`).then(handleResponse),
-  createTask: (data: any) =>
-    apiClient.post<any>('/workforce/tasks', { ...data, organisation_id: orgId() }).then(handleResponse),
-  updateTask: (id: string, data: any) =>
-    apiClient.put<any>(`/workforce/tasks/${id}`, data).then(handleResponse),
-  deleteTask: (id: string) =>
-    apiClient.delete<any>(`/workforce/tasks/${id}`).then(handleResponse),
 
   // Training & Certifications
   getTrainingPrograms: () =>

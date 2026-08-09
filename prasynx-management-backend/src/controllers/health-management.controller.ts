@@ -16,7 +16,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_medical_records')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id)
         .order('created_at', { ascending: false });
       sendSuccess(res, data || []);
@@ -27,7 +27,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_checkups')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id)
         .order('scheduled_date', { ascending: false });
       sendSuccess(res, data || []);
@@ -38,7 +38,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_medications')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id)
         .order('administered_at', { ascending: false });
       sendSuccess(res, data || []);
@@ -60,7 +60,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_covid_tracking')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id)
         .order('reported_date', { ascending: false });
       sendSuccess(res, data || []);
@@ -71,7 +71,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_mood_logs')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id)
         .order('logged_at', { ascending: false });
       sendSuccess(res, data || []);
@@ -82,7 +82,7 @@ export class HealthManagementController {
     try {
       const { data } = await supabase
         .from('health_emergency_contacts')
-        .select('*, student:students(full_name, roll_number, student_class)')
+        .select('*, student:students(full_name, roll_number, class_id, classes(name))')
         .eq('organisation_id', req.params.org_id);
       sendSuccess(res, data || []);
     } catch (e: any) { sendError(res, e.message); }

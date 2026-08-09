@@ -42,7 +42,7 @@ export class StudentMessageController {
       }
       const participants = [...convMap.keys()];
       if (participants.length === 0) return sendSuccess(res, []);
-      const { data: teachers } = await supabase.from('teachers').select('id, full_name, subject').in('id', participants);
+      const { data: teachers } = await supabase.from('staff_records').select('id, full_name, subject').in('id', participants);
       const teacherMap = new Map((teachers || []).map(t => [t.id, t]));
       const conversations = [...convMap.entries()].map(([pid, lastMsg]) => ({
         participant_id: pid,

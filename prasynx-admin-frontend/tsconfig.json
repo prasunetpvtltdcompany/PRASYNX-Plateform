@@ -16,6 +16,7 @@
     "plugins": [{"name": "next"}],
     "allowJs": true,
     "esModuleInterop": true,
+    "ignoreDeprecations": "6.0",
     "baseUrl": ".",
     "paths": { "@/*": ["./*"] }
   },

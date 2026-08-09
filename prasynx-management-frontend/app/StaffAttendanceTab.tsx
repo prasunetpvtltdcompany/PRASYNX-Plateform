@@ -6,7 +6,7 @@ import { staffAttendanceApi } from './lib/dataService';
 import { 
   ClipboardList, Search, RefreshCw, Save, Check, Calendar, 
   ArrowUpRight, Download, Printer, User, Filter, SlidersHorizontal,
-  ChevronLeft, ChevronRight, Upload, AlertCircle, Clock, CheckCircle2, XCircle
+  ChevronLeft, ChevronRight, Upload, AlertCircle, Clock, CheckCircle2, XCircle, Trash2
 } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -23,6 +23,7 @@ const STATUSES = [
 ];
 
 const STATUS_COLORS: Record<string, string> = {
+  'Not Marked': 'bg-gray-100 text-gray-500 hover:bg-gray-200',
   Present: 'bg-green-100 text-green-700 hover:bg-green-200',
   Absent: 'bg-red-100 text-red-700 hover:bg-red-200',
   Late: 'bg-amber-100 text-amber-700 hover:bg-amber-200',
@@ -184,6 +185,23 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
     }
   };
 
+  // Delete a single attendance record
+  const handleDeleteRecord = async (row: any) => {
+    if (!row.id) return;
+    if (!confirm(`Delete attendance record for ${row.employee_name}? This cannot be undone.`)) return;
+    try {
+      const res = await staffAttendanceApi.deleteRecord(row.id);
+      if (res.success) {
+        toast.success('Attendance record deleted');
+        attendanceData.refetch();
+      } else {
+        toast.error(res.error || 'Failed to delete record');
+      }
+    } catch (err: any) {
+      toast.error(err.message || 'An error occurred while deleting');
+    }
+  };
+
   // Bulk save all roster records
   const handleSaveRoster = async () => {
     setIsSaving(true);
@@ -204,6 +222,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
 
   // Filter roster
   const filteredRoster = roster.filter(row => {
+    if (row.status === 'Not Marked') return false;
     if (search && !row.employee_name?.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterEmpId && !row.employee_id?.toLowerCase().includes(filterEmpId.toLowerCase())) return false;
     if (filterDept && row.department !== filterDept) return false;
@@ -220,7 +239,8 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
   const absentCount = roster.filter(r => r.status === 'Absent').length;
   const lateCount = roster.filter(r => r.status === 'Late').length;
   const leaveCount = roster.filter(r => r.status === 'Leave').length;
-  const attendanceRate = totalStaff > 0 ? Math.round((presentCount / totalStaff) * 100) : 0;
+  const notMarkedCount = roster.filter(r => r.status === 'Not Marked').length;
+  const attendanceRate = (totalStaff - notMarkedCount) > 0 ? Math.round((presentCount / (totalStaff - notMarkedCount)) * 100) : 0;
 
   // Chart Data: Department Breakdown
   const deptStats: Record<string, { present: number; total: number }> = {};
@@ -430,7 +450,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
       {/* HEADER SECTION */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-extrabold text-gray-900 flex items-center gap-2">
+          <h2 className="text-xl font-extrabold text-gray-900 dark:text-white flex items-center gap-2">
             <ClipboardList className="text-[#6D4CFF]" size={22} />
             Staff Attendance Center
           </h2>
@@ -440,7 +460,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
         <div className="flex items-center gap-2">
           <button 
             onClick={() => attendanceData.refetch()} 
-            className="p-2.5 rounded-xl border border-gray-200 text-gray-400 hover:bg-gray-50 transition"
+            className="p-2.5 rounded-xl border border-gray-200 dark:border-gray-700 text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
             title="Refresh logs"
           >
             <RefreshCw size={15} />
@@ -448,14 +468,14 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
           
           <button
             onClick={handlePrint}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
           >
             <Printer size={14} /> Print
           </button>
 
           <button
             onClick={handleExportCSV}
-            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 rounded-xl text-xs font-semibold text-gray-600 hover:bg-gray-50 transition"
+            className="flex items-center gap-1.5 px-3 py-2 border border-gray-200 dark:border-gray-700 rounded-xl text-xs font-semibold text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 transition"
           >
             <Download size={14} /> Export CSV
           </button>
@@ -479,25 +499,25 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
 
       {/* KPI METRIC CARDS */}
       <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-4">
-        <Card className="p-4 bg-white border border-gray-100 flex flex-col justify-between hover:shadow-md transition">
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Total Staff</div>
-          <div className="text-2xl font-extrabold text-gray-800 mt-2">{totalStaff}</div>
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 flex flex-col justify-between hover:shadow-md transition">
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Total Staff</div>
+          <div className="text-2xl font-extrabold text-gray-800 dark:text-white mt-2">{totalStaff}</div>
           <div className="text-[10px] text-gray-400 font-medium mt-1">Active Accounts</div>
         </Card>
         
-        <Card className="p-4 bg-white border border-gray-100 flex flex-col justify-between hover:shadow-md transition">
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 flex flex-col justify-between hover:shadow-md transition">
           <div className="text-[10px] text-green-500 font-bold uppercase tracking-wider">Present Today</div>
           <div className="text-2xl font-extrabold text-green-600 mt-2">{presentCount}</div>
           <div className="text-[10px] text-green-500 font-medium mt-1">On-duty/Present</div>
         </Card>
 
-        <Card className="p-4 bg-white border border-gray-100 flex flex-col justify-between hover:shadow-md transition">
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 flex flex-col justify-between hover:shadow-md transition">
           <div className="text-[10px] text-red-500 font-bold uppercase tracking-wider">Absent Today</div>
           <div className="text-2xl font-extrabold text-red-600 mt-2">{absentCount}</div>
           <div className="text-[10px] text-red-400 font-medium mt-1">Unexcused Absences</div>
         </Card>
 
-        <Card className="p-4 bg-white border border-gray-100 flex flex-col justify-between hover:shadow-md transition">
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 flex flex-col justify-between hover:shadow-md transition">
           <div className="text-[10px] text-amber-500 font-bold uppercase tracking-wider">Late Today</div>
           <div className="text-2xl font-extrabold text-amber-600 mt-2">{lateCount}</div>
           <div className="text-[10px] text-amber-400 font-medium mt-1">Late arrivals</div>
@@ -509,10 +529,10 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
           <div className="text-[10px] text-purple-400 font-medium mt-1">Approved Leaves</div>
         </Card>
 
-        <Card className="p-4 bg-white border border-gray-100 flex flex-col justify-between hover:shadow-md transition">
-          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Attendance Rate</div>
-          <div className="text-2xl font-extrabold text-gray-800 mt-2">{attendanceRate}%</div>
-          <div className="w-full bg-gray-100 h-1.5 rounded-full mt-2 overflow-hidden">
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 flex flex-col justify-between hover:shadow-md transition">
+          <div className="text-[10px] text-gray-400 dark:text-gray-500 font-bold uppercase tracking-wider">Attendance Rate</div>
+          <div className="text-2xl font-extrabold text-gray-800 dark:text-white mt-2">{attendanceRate}%</div>
+          <div className="w-full bg-gray-100 dark:bg-gray-800 h-1.5 rounded-full mt-2 overflow-hidden">
             <div className="bg-[#6D4CFF] h-full" style={{ width: `${attendanceRate}%` }}></div>
           </div>
         </Card>
@@ -521,8 +541,8 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
       {/* ANALYTICS CHARTS PANEL */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Department Attendance Rate Bar Chart */}
-        <Card className="p-4 lg:col-span-2 bg-white border border-gray-100">
-          <h3 className="text-xs font-bold text-gray-700 mb-4 uppercase tracking-wider">Department Wise Attendance Rate</h3>
+        <Card className="p-4 lg:col-span-2 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+          <h3 className="text-xs font-bold text-gray-700 dark:text-gray-200 mb-4 uppercase tracking-wider">Department Wise Attendance Rate</h3>
           <div className="h-60">
             {deptChartData.length === 0 ? (
               <div className="h-full flex items-center justify-center text-xs text-gray-400">No department stats available</div>
@@ -544,8 +564,8 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
         </Card>
 
         {/* Weekly Trend Area Chart */}
-        <Card className="p-4 bg-white border border-gray-100">
-          <h3 className="text-xs font-bold text-gray-700 mb-4 uppercase tracking-wider">Weekly Attendance Trend (%)</h3>
+        <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
+          <h3 className="text-xs font-bold text-gray-700 dark:text-gray-200 mb-4 uppercase tracking-wider">Weekly Attendance Trend (%)</h3>
           <div className="h-60">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={trendData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
@@ -567,17 +587,17 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
       </div>
 
       {/* FILTER & BULK CONTROLS */}
-      <Card className="p-4 bg-white border border-gray-100">
+      <Card className="p-4 bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           {/* Main search and date */}
           <div className="flex flex-wrap items-center gap-3">
-            <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-3 py-1.5 rounded-xl text-xs">
+            <div className="flex items-center gap-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-1.5 rounded-xl text-xs">
               <Calendar size={14} className="text-gray-400" />
               <input 
                 type="date" 
                 value={selectedDate} 
                 onChange={e => setSelectedDate(e.target.value)} 
-                className="bg-transparent font-medium text-gray-700 focus:outline-none" 
+                className="bg-transparent dark:bg-gray-800 font-medium text-gray-700 dark:text-gray-200 focus:outline-none" 
               />
             </div>
             
@@ -641,7 +661,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                 value={filterEmpId} 
                 onChange={e => setFilterEmpId(e.target.value)}
                 placeholder="e.g. STF-001"
-                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-xs focus:outline-none"
               />
             </div>
             
@@ -650,7 +670,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
               <select
                 value={filterDept}
                 onChange={e => setFilterDept(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-xs focus:outline-none"
               >
                 <option value="">All Departments</option>
                 {Array.from(new Set(roster.map(r => r.department).filter(Boolean))).map(d => (
@@ -664,7 +684,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
               <select
                 value={filterRole}
                 onChange={e => setFilterRole(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-xs focus:outline-none"
               >
                 <option value="">All Roles</option>
                 <option value="admin">Admin</option>
@@ -679,7 +699,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
               <select
                 value={filterStatus}
                 onChange={e => setFilterStatus(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-xs focus:outline-none"
               >
                 <option value="">All Statuses</option>
                 {STATUSES.map(s => (
@@ -693,7 +713,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
               <select
                 value={filterEmpType}
                 onChange={e => setFilterEmpType(e.target.value)}
-                className="w-full px-3 py-1.5 border border-gray-200 rounded-lg text-xs focus:outline-none"
+                className="w-full px-3 py-1.5 border border-gray-200 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100 rounded-lg text-xs focus:outline-none"
               >
                 <option value="">All Types</option>
                 <option value="Full-time">Full-time</option>
@@ -710,16 +730,16 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
         
         {/* DAILY ROSTER SHEET */}
         <div className="xl:col-span-3 space-y-4">
-          <Card className="bg-white border border-gray-100 overflow-hidden">
-            <div className="px-4 py-3 bg-gray-50/50 border-b border-gray-100 flex items-center justify-between">
-              <span className="text-xs font-bold text-gray-700 uppercase tracking-wider">Daily Roster Sheet</span>
+          <Card className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 overflow-hidden">
+            <div className="px-4 py-3 bg-gray-50/50 dark:bg-gray-800/50 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
+              <span className="text-xs font-bold text-gray-700 dark:text-gray-200 uppercase tracking-wider">Daily Roster Sheet</span>
               <span className="text-[10px] text-gray-400">Showing {filteredRoster.length} staff members</span>
             </div>
 
             <div className="overflow-x-auto">
               <table className="w-full text-xs">
                 <thead>
-                  <tr className="bg-gray-50 border-b border-gray-100">
+                  <tr className="bg-gray-50 dark:bg-gray-800 border-b border-gray-100 dark:border-gray-800">
                     <th className="text-left px-4 py-3 font-semibold text-gray-500">Employee ID</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-500">Employee Name</th>
                     <th className="text-left px-4 py-3 font-semibold text-gray-500">Department / Role</th>
@@ -731,20 +751,20 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                     <th className="text-center px-4 py-3 font-semibold text-gray-500">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-50">
+                <tbody className="divide-y divide-gray-50 dark:divide-gray-800">
                   {attendanceData.loading ? (
                     <tr>
                       <td colSpan={9} className="text-center py-10 text-gray-400 text-xs">Loading attendance roster...</td>
                     </tr>
                   ) : filteredRoster.length === 0 ? (
                     <tr>
-                      <td colSpan={9} className="text-center py-10 text-gray-400 text-xs">No records found matching filters</td>
+                      <td colSpan={9} className="text-center py-10 text-gray-400 text-xs">No attendance marked for this date yet. Records appear here once attendance is marked.</td>
                     </tr>
                   ) : (
                     filteredRoster.map(row => (
-                      <tr key={row.staff_id} className="hover:bg-gray-50/50 transition">
+                      <tr key={row.staff_id} className="hover:bg-gray-50/50 dark:hover:bg-gray-800/50 transition">
                         {/* ID */}
-                        <td className="px-4 py-3 font-medium text-gray-900 whitespace-nowrap">{row.employee_id}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap">{row.employee_id}</td>
                         
                         {/* Name */}
                         <td className="px-4 py-3 whitespace-nowrap">
@@ -762,7 +782,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
 
                         {/* Dept/Role */}
                         <td className="px-4 py-3 whitespace-nowrap">
-                          <div className="font-semibold text-gray-700">{row.department}</div>
+                          <div className="font-semibold text-gray-700 dark:text-gray-200">{row.department}</div>
                           <div className="text-[10px] text-gray-400 capitalize">{row.role} • {row.designation}</div>
                         </td>
 
@@ -804,7 +824,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                         </td>
 
                         {/* Calculated Hours */}
-                        <td className="px-4 py-3 text-center whitespace-nowrap font-medium text-gray-700">
+                        <td className="px-4 py-3 text-center whitespace-nowrap font-medium text-gray-700 dark:text-gray-200">
                           {row.working_hours != null ? `${row.working_hours} hrs` : '—'}
                         </td>
 
@@ -836,6 +856,15 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                             >
                               <Check size={14} />
                             </button>
+                            {row.id && (
+                              <button
+                                onClick={() => handleDeleteRecord(row)}
+                                className="p-1.5 rounded-lg bg-red-50 text-red-500 hover:bg-red-100 transition"
+                                title="Delete Record"
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -849,7 +878,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
 
         {/* MONTHLY CALENDAR HEATMAP */}
         <div className="xl:col-span-1">
-          <Card className="bg-white border border-gray-100 p-4 space-y-4">
+          <Card className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 p-4 space-y-4">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
               <h3 className="text-xs font-bold text-gray-700 uppercase tracking-wider flex items-center gap-1.5">
                 <Calendar className="text-[#6D4CFF]" size={15} />
@@ -873,8 +902,8 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
             ) : (
               <div className="space-y-4">
                 {/* Staff Detail */}
-                <div className="p-3 bg-gray-50 rounded-xl">
-                  <div className="text-xs font-bold text-gray-800">{selectedStaffName}</div>
+                <div className="p-3 bg-gray-50 dark:bg-gray-800 rounded-xl">
+                  <div className="text-xs font-bold text-gray-800 dark:text-gray-100">{selectedStaffName}</div>
                   <div className="text-[10px] text-gray-400 mt-0.5">Calendar Heatmap Log</div>
                 </div>
 
@@ -889,11 +918,11 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                         setHistoryMonth(historyMonth - 1);
                       }
                     }}
-                    className="p-1 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500"
+                    className="p-1 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
                   >
                     <ChevronLeft size={14} />
                   </button>
-                  <span className="text-xs font-bold text-gray-700">
+                  <span className="text-xs font-bold text-gray-700 dark:text-gray-200">
                     {new Date(historyYear, historyMonth - 1).toLocaleString('default', { month: 'long', year: 'numeric' })}
                   </span>
                   <button 
@@ -905,7 +934,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                         setHistoryMonth(historyMonth + 1);
                       }
                     }}
-                    className="p-1 border border-gray-200 rounded-lg hover:bg-gray-50 text-gray-500"
+                    className="p-1 border border-gray-200 dark:border-gray-700 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 text-gray-500 dark:text-gray-400"
                   >
                     <ChevronRight size={14} />
                   </button>
@@ -924,7 +953,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
                     }
 
                     const hist = getDayHistory(day);
-                    let cellBg = 'bg-gray-50 hover:bg-gray-100 text-gray-700';
+                    let cellBg = 'bg-gray-50 dark:bg-gray-800 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200';
                     let tooltip = `Day ${day}: No Record`;
 
                     if (hist) {
@@ -978,7 +1007,7 @@ export default function StaffAttendanceTab({ staffList: staffListInput }: { staf
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
           <Card className="bg-white border border-gray-200 p-6 max-w-md w-full mx-4 space-y-4 shadow-xl">
             <div className="flex items-center justify-between border-b border-gray-100 pb-3">
-              <h3 className="text-sm font-bold text-gray-800 flex items-center gap-2">
+              <h3 className="text-sm font-bold text-gray-800 dark:text-gray-100 flex items-center gap-2">
                 <Upload className="text-[#6D4CFF]" size={16} />
                 Import Attendance from CSV
               </h3>

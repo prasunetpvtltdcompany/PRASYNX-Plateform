@@ -7,35 +7,35 @@ const client = new Client({
 
 async function main() {
   await client.connect();
-  console.log('Altering teachers table to add missing columns...');
+  console.log('Altering staff_records table to add missing columns...');
   
   const query = `
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS staff_unique_id TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS department TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS designation TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS experience_years INTEGER;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS gender TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS date_of_birth DATE;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS address TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS city TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS state TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS country TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS postal_code TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS salary NUMERIC(10,2);
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS employment_type TEXT;
-    ALTER TABLE public.teachers ADD COLUMN IF NOT EXISTS reporting_manager TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS staff_unique_id TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS department TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS designation TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS experience_years INTEGER;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS gender TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS date_of_birth DATE;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS address TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS city TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS state TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS country TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS postal_code TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS salary NUMERIC(10,2);
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS employment_type TEXT;
+    ALTER TABLE public.staff_records ADD COLUMN IF NOT EXISTS reporting_manager TEXT;
   `;
 
   await client.query(query);
-  console.log('Teachers table altered successfully.');
+  console.log('staff_records table altered successfully.');
   
   const res = await client.query(`
     SELECT column_name, data_type 
     FROM information_schema.columns 
-    WHERE table_name = 'teachers'
+    WHERE table_name = 'staff_records'
     ORDER BY column_name
   `);
-  console.log('Updated columns in "teachers" table:');
+  console.log('Updated columns in "staff_records" table:');
   res.rows.forEach((row: any) => {
     console.log(`- ${row.column_name}: ${row.data_type}`);
   });

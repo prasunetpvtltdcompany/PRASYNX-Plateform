@@ -61,7 +61,7 @@ export class AuditService {
 
   // 3. Staff without user accounts
   async checkOrphanStaff(orgId: string): Promise<AuditResult[]> {
-    const { count } = await supabase.from('teachers')
+    const { count } = await supabase.from('staff_records')
       .select('*', { count: 'exact', head: true })
       .eq('organisation_id', orgId).is('user_id', null);
     if (count && count > 0) return [{ check: '3. Orphan Staff', status: 'fail', detail: `${count} teachers have no user_id`, count }];
@@ -109,8 +109,8 @@ export class AuditService {
   // 7. Multiple class teachers per class
   async checkClassTeacherOverlap(orgId: string): Promise<AuditResult[]> {
     const { data } = await supabase.from('class_subject_teacher_map')
-      .select('class_id')
-      .eq('organisation_id', orgId).eq('is_class_teacher', true);
+      .select('class_id, class:classes!inner(organisation_id)')
+      .eq('class.organisation_id', orgId).eq('is_class_teacher', true);
     if (!data?.length) return [{ check: '7. Class Teacher Overlap', status: 'pass', detail: 'No class teachers assigned' }];
     const classCounts: Record<string, number> = {};
     for (const r of data) classCounts[r.class_id] = (classCounts[r.class_id] || 0) + 1;
@@ -121,8 +121,8 @@ export class AuditService {
 
   // 8. Subjects without assigned teacher (via class_subject_teacher_map)
   async checkSubjectTeacherMissing(orgId: string): Promise<AuditResult[]> {
-    const { data: allCS } = await supabase.from('class_subjects').select('id').eq('organisation_id', orgId);
-    const { data: cst } = await supabase.from('class_subject_teacher_map').select('class_id, subject_id').eq('organisation_id', orgId);
+    const { data: allCS } = await supabase.from('class_subjects').select('id, class:classes!inner(organisation_id)').eq('class.organisation_id', orgId);
+    const { data: cst } = await supabase.from('class_subject_teacher_map').select('class_id, subject_id, class:classes!inner(organisation_id)').eq('class.organisation_id', orgId);
     if (!allCS?.length) return [{ check: '8. Subjects Without Teacher', status: 'pass', detail: 'No class-subject assignments to check' }];
     const assigned = new Set((cst || []).map((r: any) => `${r.class_id}:${r.subject_id}`));
     const missing = allCS.filter((cs: any) => !assigned.has(`${cs.class_id}:${cs.subject_id}`));
@@ -154,9 +154,9 @@ export class AuditService {
 
   // 11. CSTMap entries with no class/teacher
   async checkCSTMapOrphans(orgId: string): Promise<AuditResult[]> {
-    const { data: cst } = await supabase.from('class_subject_teacher_map').select('class_id, teacher_id').eq('organisation_id', orgId);
+    const { data: cst } = await supabase.from('class_subject_teacher_map').select('class_id, teacher_id, class:classes!inner(organisation_id)').eq('class.organisation_id', orgId);
     const { data: classes } = await supabase.from('classes').select('id').eq('organisation_id', orgId);
-    const { data: teachers } = await supabase.from('teachers').select('id').eq('organisation_id', orgId);
+    const { data: teachers } = await supabase.from('staff_records').select('id').eq('organisation_id', orgId);
     if (!cst?.length) return [{ check: '11. Orphan Teacher Assignments', status: 'pass', detail: 'No teacher assignments to check' }];
     const validClasses = new Set((classes || []).map((c: any) => c.id));
     const validTeachers = new Set((teachers || []).map((t: any) => t.id));
@@ -205,7 +205,7 @@ export class AuditService {
     let collisions = 0;
     const configs = [
       { table: 'students' as const, col: 'student_unique_id' },
-      { table: 'teachers' as const, col: 'staff_unique_id' },
+      { table: 'staff_records' as const, col: 'staff_unique_id' },
       { table: 'parents' as const, col: 'parent_unique_id' },
     ];
     for (const { table, col } of configs) {

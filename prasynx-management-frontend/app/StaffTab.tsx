@@ -8,15 +8,19 @@ import { useForm, LoadingSkeleton, ErrorState, EmptyState, useApi } from './lib/
 import apiClient from './lib/apiClient';
 import Link from 'next/link';
 import {
-  staffApi, classApi, subjectApi, credentialMgmtApi, bulkApi
+  staffApi, classApi, subjectApi, credentialMgmtApi, bulkApi, staffAttendanceApi
 } from './lib/dataService';
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+  AreaChart, Area, PieChart as RePie, Pie, Cell, Legend
+} from 'recharts';
 import {
   Building2, Briefcase, ChevronLeft, ChevronRight, Download, Edit3, Eye, Filter,
   GraduationCap, Key, Layers, Plus, RotateCcw, Search, Trash2, Upload,
   UserCheck, Users, UserX, ChevronDown, X, Loader2, CheckCircle2, Printer,
   FileSpreadsheet, EyeOff, AlertTriangle, FileText, XCircle, AlertCircle,
   MoreVertical, Calendar, DollarSign, MapPin, Mail, Phone, User, ShieldAlert,
-  UserPlus, LayoutDashboard, TrendingUp, Lock, Shield
+  UserPlus, LayoutDashboard, TrendingUp, Lock, Shield, Activity
 } from 'lucide-react';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -79,6 +83,113 @@ function KpiCard({ icon: Icon, label, value, trend, color, bg, chart }: any) {
         </div>
       )}
     </motion.div>
+  );
+}
+
+const CHART_COLORS = ['#6D4CFF', '#8B5CF6', '#A855F7', '#3B82F6', '#22C55E', '#F59E0B', '#EF4444', '#14B8A6', '#EC4899', '#F97316'];
+
+function DashboardInsights({ analytics, loading, onRetry }: { analytics: any; loading?: boolean; onRetry?: () => void }) {
+  const a = analytics || {};
+  const trend: any[] = Array.isArray(a.attendanceTrend) ? a.attendanceTrend : [];
+  const depts: any[] = Array.isArray(a.departmentDistribution) ? a.departmentDistribution : [];
+  const roles: any[] = Array.isArray(a.roleDistribution) ? a.roleDistribution : [];
+
+  return (
+    <div className="mb-4 animate-fadeIn">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+        <div className="stat-card"><div className="text-[11px] text-gray-500 font-medium">Present Today</div><div className="text-xl font-extrabold text-gray-900 mt-0.5">{a.presentToday ?? '—'}</div><div className="text-[10px] text-emerald-600 font-semibold mt-0.5">{a.todayRate != null ? `${a.todayRate}% rate` : ''}</div></div>
+        <div className="stat-card"><div className="text-[11px] text-gray-500 font-medium">Absent Today</div><div className="text-xl font-extrabold text-gray-900 mt-0.5">{a.absentToday ?? '—'}</div><div className="text-[10px] text-red-500 font-semibold mt-0.5">{a.totalStaff != null ? `of ${a.totalStaff} staff` : ''}</div></div>
+        <div className="stat-card"><div className="text-[11px] text-gray-500 font-medium">7-Day Attendance</div><div className="text-xl font-extrabold text-gray-900 mt-0.5">{a.weekRate != null ? `${a.weekRate}%` : '—'}</div><div className="text-[10px] text-blue-600 font-semibold mt-0.5">rolling average</div></div>
+        <div className="stat-card"><div className="text-[11px] text-gray-500 font-medium">Departments</div><div className="text-xl font-extrabold text-gray-900 mt-0.5">{depts.length || '—'}</div><div className="text-[10px] text-purple-600 font-semibold mt-0.5">{roles.length || ''} role types</div></div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Attendance Trend */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Activity size={15} className="text-[#6D4CFF]" />
+              <h3 className="text-xs font-bold text-gray-700">Attendance Trend</h3>
+            </div>
+            <Badge className="text-[9px] font-medium bg-purple-50 text-purple-700">Last {trend.length} days</Badge>
+          </div>
+          {loading ? (
+            <div className="h-56 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
+          ) : trend.length > 0 && trend.some((t: any) => t.total > 0) ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <AreaChart data={trend}>
+                  <defs>
+                    <linearGradient id="attPresent" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#22C55E" stopOpacity={0.35} /><stop offset="95%" stopColor="#22C55E" stopOpacity={0} /></linearGradient>
+                    <linearGradient id="attAbsent" x1="0" y1="0" x2="0" y2="1"><stop offset="5%" stopColor="#EF4444" stopOpacity={0.35} /><stop offset="95%" stopColor="#EF4444" stopOpacity={0} /></linearGradient>
+                  </defs>
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis dataKey="label" tick={{ fontSize: 9 }} interval={trend.length > 14 ? 1 : 0} />
+                  <YAxis allowDecimals={false} tick={{ fontSize: 9 }} width={24} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} />
+                  <Legend wrapperStyle={{ fontSize: 10 }} />
+                  <Area type="monotone" dataKey="Present" stroke="#22C55E" strokeWidth={2} fill="url(#attPresent)" />
+                  <Area type="monotone" dataKey="Absent" stroke="#EF4444" strokeWidth={2} fill="url(#attAbsent)" />
+                </AreaChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState message="No attendance records in the selected period yet." />
+          )}
+        </div>
+
+        {/* Department Distribution */}
+        <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Building2 size={15} className="text-[#3B82F6]" />
+              <h3 className="text-xs font-bold text-gray-700">Department Distribution</h3>
+            </div>
+            {depts.length > 0 && <Badge className="text-[9px] font-medium bg-blue-50 text-blue-700">{depts.length} departments</Badge>}
+          </div>
+          {loading ? (
+            <div className="h-56 flex items-center justify-center"><Loader2 size={20} className="animate-spin text-gray-300" /></div>
+          ) : depts.length > 0 ? (
+            <div className="h-56">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={depts} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                  <XAxis type="number" allowDecimals={false} tick={{ fontSize: 9 }} />
+                  <YAxis type="category" dataKey="name" tick={{ fontSize: 9 }} width={92} />
+                  <Tooltip contentStyle={{ fontSize: 11 }} />
+                  <Bar dataKey="count" radius={[0, 4, 4, 0]}>
+                    {depts.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          ) : (
+            <EmptyState message="No department data available." />
+          )}
+        </div>
+
+        {/* Role Distribution */}
+        {roles.length > 0 && (
+          <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <Briefcase size={15} className="text-[#8B5CF6]" />
+              <h3 className="text-xs font-bold text-gray-700">Role Distribution</h3>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-2">
+              {roles.map((r: any, i: number) => (
+                <div key={i} className="flex items-center gap-2 p-2.5 rounded-lg border border-gray-100">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ background: CHART_COLORS[i % CHART_COLORS.length] }} />
+                  <div className="min-w-0">
+                    <div className="text-[10px] font-bold text-gray-800 capitalize truncate">{r.name}</div>
+                    <div className="text-[9px] text-gray-400">{r.count} staff</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 
@@ -258,7 +369,7 @@ function EditStaffForm({ staff, onDone }: { staff: any; onDone: () => void }) {
     email: staff.email || '',
     role: staff.role || 'teacher',
     phone: staff.phone || '',
-    employee_id: staff.staff_unique_id || staff.teacher_code || '',
+    employee_id: staff.staff_unique_id || staff.staff_unique_id || '',
     department: staff.department || '',
     designation: staff.designation || '',
     qualification: staff.qualification || '',
@@ -475,7 +586,7 @@ function EditStaffForm({ staff, onDone }: { staff: any; onDone: () => void }) {
   );
 }
 
-function StaffForm({ onDone, onCreated }: { onDone: () => void; onCreated?: (creds: { email: string; password: string }) => void }) {
+export function StaffForm({ onDone, onCreated }: { onDone: () => void; onCreated?: (creds: { email: string; password: string }) => void }) {
   const f = useForm({
     full_name: '',
     email: '',
@@ -773,7 +884,7 @@ function StaffProfileDrawer({ staff, open, onClose, onAction }: { staff: any; op
               </div>
               <div>
                 <h3 className="font-bold text-sm text-gray-900">{staff.full_name}</h3>
-                <p className="text-[10px] text-gray-400">Employee ID: {staff.staff_unique_id || staff.teacher_code || '—'}</p>
+                <p className="text-[10px] text-gray-400">Employee ID: {staff.staff_unique_id || staff.staff_unique_id || '—'}</p>
               </div>
             </div>
             <button
@@ -826,7 +937,7 @@ function StaffProfileDrawer({ staff, open, onClose, onAction }: { staff: any; op
               <div className="grid grid-cols-2 gap-x-4 gap-y-3">
                 <div>
                   <span className="text-gray-400 block font-medium">Employee ID</span>
-                  <span className="font-semibold text-gray-850">{staff.staff_unique_id || staff.teacher_code || '—'}</span>
+                  <span className="font-semibold text-gray-850">{staff.staff_unique_id || staff.staff_unique_id || '—'}</span>
                 </div>
                 <div>
                   <span className="text-gray-400 block font-medium">Full Name</span>
@@ -1616,6 +1727,8 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
     employment_type: filters.employment_type
   }), [debouncedSearch, filters.role, filters.department, filters.status, filters.employment_type]);
 
+  const dashboardAnalytics = useApi(() => staffAttendanceApi.getDashboardAnalytics(14), []);
+
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [broadcastOpen, setBroadcastOpen] = useState(false);
   const [broadcastMessage, setBroadcastMessage] = useState('');
@@ -1685,7 +1798,6 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
       result = result.filter((s: any) =>
         s.full_name?.toLowerCase().includes(q) ||
         s.staff_unique_id?.toLowerCase().includes(q) ||
-        s.teacher_code?.toLowerCase().includes(q) ||
         s.email?.toLowerCase().includes(q) ||
         s.phone?.toLowerCase().includes(q)
       );
@@ -1738,7 +1850,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
 
   const handleExportFiltered = () => {
     const rows = sortedStaff.map((s: any) => ({
-      'Employee ID': s.staff_unique_id || s.teacher_code || '',
+      'Employee ID': s.staff_unique_id || s.staff_unique_id || '',
       'Full Name': s.full_name,
       'Role': s.role || 'staff',
       'Department': s.department || '',
@@ -1804,7 +1916,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
   const handleBulkExport = () => {
     const selectedList = sortedStaff.filter((s: any) => selectedIds.has(s.id));
     const rows = selectedList.map((s: any) => ({
-      'Employee ID': s.staff_unique_id || s.teacher_code || '',
+      'Employee ID': s.staff_unique_id || s.staff_unique_id || '',
       'Full Name': s.full_name,
       'Role': s.role || 'staff',
       'Department': s.department || '',
@@ -1956,6 +2068,9 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
         <KpiCard icon={Building2} label="Departments" value={stats.depts} color="#F59E0B" bg="#FEF3C7" />
       </div>
 
+      {/* Dashboard Insights — Attendance Trend & Department Distribution */}
+      <DashboardInsights analytics={dashboardAnalytics.data?.data || dashboardAnalytics.data} loading={dashboardAnalytics.loading} onRetry={dashboardAnalytics.refetch} />
+
       {/* Advanced Filters Section */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 mb-4 shadow-sm space-y-3 animate-fadeIn">
         <div className="flex items-center justify-between border-b pb-2">
@@ -2083,7 +2198,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                       />
                     </td>
                     {/* Employee ID */}
-                    <td className="px-4 py-3 whitespace-nowrap w-[120px] min-w-[120px] max-w-[120px] font-medium text-gray-900">{row.staff_unique_id || row.teacher_code || '—'}</td>
+                    <td className="px-4 py-3 whitespace-nowrap w-[120px] min-w-[120px] max-w-[120px] font-medium text-gray-900">{row.staff_unique_id || row.staff_unique_id || '—'}</td>
                     {/* Full Name (sticky left, click to drawer) */}
                     <td className="px-4 py-3 font-semibold text-gray-900 whitespace-nowrap sticky left-0 bg-white z-10 shadow-[2px_0_5px_rgba(0,0,0,0.05)] border-r border-gray-100 group-hover:bg-purple-50/50 transition-colors w-[180px] min-w-[180px] max-w-[180px]">
                       <button onClick={() => { setSelectedStaff(row); setViewOpen(true); }} className="hover:text-[#6D4CFF] text-left hover:underline">{row.full_name}</button>
@@ -2223,7 +2338,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                   <div className="flex items-center justify-between border-b pb-2">
                     <div>
                       <h4 className="font-bold text-sm text-gray-900">{row.full_name}</h4>
-                      <p className="text-[10px] text-gray-400">Employee ID: {row.staff_unique_id || row.teacher_code || '—'}</p>
+                      <p className="text-[10px] text-gray-400">Employee ID: {row.staff_unique_id || row.staff_unique_id || '—'}</p>
                     </div>
                     <Link href={`/staff/${row.id}/dashboard`}>
                       <Badge className={`text-[9px] capitalize cursor-pointer hover:opacity-85 transition-opacity ${getRoleBadgeStyle(row.designation || row.role)}`}>

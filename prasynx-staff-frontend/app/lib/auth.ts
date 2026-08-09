@@ -13,7 +13,7 @@ export interface SessionData {
   };
   teacher?: {
     id: string;
-    teacher_code: string;
+    staff_unique_id: string;
     full_name: string;
     subject: string;
     organisation_id: string;

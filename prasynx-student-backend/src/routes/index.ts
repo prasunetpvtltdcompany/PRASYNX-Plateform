@@ -93,7 +93,7 @@ router.get('/timetable/:class_id', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teachers(*), subjects(*)')
+      .select('*, staff_records(*), subjects(*)')
       .eq('class_id', class_id)
       .order('day_of_week');
 
@@ -126,7 +126,7 @@ router.get('/timetable/student/:student_id', enforceStudentAccess(), async (req,
 
     const { data, error } = await supabase
       .from('timetable_entries')
-      .select('*, teachers(*), subjects(*)')
+      .select('*, staff_records(*), subjects(*)')
       .eq('class_id', classes.id)
       .order('day_of_week');
 
@@ -448,20 +448,22 @@ router.post('/canteen-orders', overrideBody('student_id'), (req, res) => student
 router.get('/health/:student_id', enforceStudentAccess(), async (req, res) => {
   const { student_id } = req.params;
   try {
-    const [reportsRes, vaccinesRes, medicalRes, checkupsRes, medicationsRes, moodRes, covidRes, emergencyRes] = await Promise.all([
+    const [reportsRes, vaccinesRes, medicalRes, checkupsRes, medicationsRes, moodRes, covidRes, emergencyRes, healthRecordsRes] = await Promise.all([
       supabase.from('documents').select('*').eq('student_id', student_id).eq('document_type', 'Health Report').order('created_at', { ascending: false }),
-      supabase.from('vaccinations').select('*').eq('student_id', student_id).order('administered_date', { ascending: false }),
-      supabase.from('health_medical_records').select('*').eq('student_id', student_id).order('created_at', { ascending: false }),
-      supabase.from('health_checkups').select('*').eq('student_id', student_id).order('scheduled_date', { ascending: false }),
-      supabase.from('health_medications').select('*').eq('student_id', student_id).order('administered_at', { ascending: false }),
-      supabase.from('health_mood_logs').select('*').eq('student_id', student_id).order('logged_at', { ascending: false }),
-      supabase.from('health_covid_tracking').select('*').eq('student_id', student_id).order('reported_date', { ascending: false }),
-      supabase.from('health_emergency_contacts').select('*').eq('student_id', student_id)
+      supabase.from('vaccinations').select('*').eq('student_id', student_id).order('vaccination_date', { ascending: false, nullsFirst: true }),
+      supabase.from('health_medical_records').select('*').eq('student_id', student_id).order('record_date', { ascending: false }),
+      supabase.from('health_checkups').select('*').eq('student_id', student_id).order('checkup_date', { ascending: false, nullsFirst: true }),
+      supabase.from('health_medications').select('*').eq('student_id', student_id).order('created_at', { ascending: false }),
+      supabase.from('health_mood_logs').select('*').eq('student_id', student_id).order('created_at', { ascending: false }),
+      supabase.from('health_covid_tracking').select('*').eq('student_id', student_id).order('created_at', { ascending: false }),
+      supabase.from('health_emergency_contacts').select('*').eq('student_id', student_id),
+      supabase.from('health_records').select('*').eq('student_id', student_id).eq('recorded_by', 'Student').order('recorded_at', { ascending: false })
     ]);
+    const healthRecords = healthRecordsRes.data || [];
     res.json({
       reports: reportsRes.data || [],
       vaccinations: vaccinesRes.data || [],
-      medicalRecords: medicalRes.data || [],
+      medicalRecords: [...healthRecords, ...(medicalRes.data || [])],
       checkups: checkupsRes.data || [],
       medications: medicationsRes.data || [],
       moodLogs: moodRes.data || [],
@@ -478,6 +480,10 @@ router.post('/health/medical-records', overrideBody('student_id'), (req, res) =>
 router.post('/health/checkups', overrideBody('student_id'), (req, res) => studentHealthRecordsController.createCheckup(req, res));
 
 router.post('/health/medications', overrideBody('student_id'), (req, res) => studentHealthRecordsController.createMedication(req, res));
+
+router.post('/health/vaccinations', overrideBody('student_id'), (req, res) => studentHealthRecordsController.createVaccination(req, res));
+
+router.post('/health/emergency', overrideBody('student_id'), (req, res) => studentHealthRecordsController.createEmergencyContact(req, res));
 
 router.post('/health/counseling', overrideBody('student_id'), (req, res) => studentHealthRecordsController.createCounseling(req, res));
 

@@ -111,7 +111,7 @@ export class ScholarshipService {
   async getApplications(orgId: string, params?: { search?: string; status?: string }) {
     let query = supabase
       .from('scholarship_applications')
-      .select('*, students!inner(full_name, admission_number, class_id, section, family_income, photo_url), scholarships!inner(name)')
+      .select('*, students!inner(full_name, admission_number, class_id, section_id, sections(name), family_income, photo_url), scholarships!inner(name)')
       .eq('organisation_id', orgId);
 
     if (params?.status) query = query.eq('status', params.status);
@@ -126,7 +126,7 @@ export class ScholarshipService {
       fullName: (a as any).students?.full_name || 'Unknown',
       admissionNumber: (a as any).students?.admission_number || '—',
       class: (a as any).students?.class_id || '—',
-      section: (a as any).students?.section || '—',
+      section: (a as any).students?.sections?.name || '—',
       photoUrl: (a as any).students?.photo_url,
       familyIncome: (a as any).students?.family_income || Math.round(Math.random() * 500000 + 100000),
       scholarshipName: (a as any).scholarships?.name || 'General Scholarship',
@@ -161,7 +161,7 @@ export class ScholarshipService {
   async getBeneficiaries(orgId: string) {
     const { data } = await supabase
       .from('scholarship_beneficiaries')
-      .select('*, students!inner(full_name, admission_number, class_id, section, photo_url, avg_grade), scholarships!inner(name, amount)')
+      .select('*, students!inner(full_name, admission_number, class_id, section_id, sections(name), photo_url, avg_grade), scholarships!inner(name, amount)')
       .eq('organisation_id', orgId)
       .order('created_at', { ascending: false });
 
@@ -171,7 +171,7 @@ export class ScholarshipService {
       fullName: (b as any).students?.full_name || 'Unknown',
       admissionNumber: (b as any).students?.admission_number || '—',
       class: (b as any).students?.class_id || '—',
-      section: (b as any).students?.section || '—',
+      section: (b as any).students?.sections?.name || '—',
       photoUrl: (b as any).students?.photo_url,
       scholarshipName: (b as any).scholarships?.name || 'General',
       amountAwarded: b.amount_awarded || 0,
@@ -185,14 +185,14 @@ export class ScholarshipService {
   async getAiEligibility(orgId: string) {
     const { data: students } = await supabase
       .from('students')
-      .select('id, full_name, admission_number, class_id, section, avg_grade, attendance_pct, family_income, category')
+      .select('id, full_name, admission_number, class_id, section_id, sections(name), avg_grade, attendance_pct, family_income, category')
       .eq('organisation_id', orgId)
       .limit(100);
 
     const list = students || [];
     const scholarshipTypes = ['Merit Based', 'Need Based', 'Sports', 'Arts', 'Minority', 'Girl Child', 'Research'];
 
-    return list.map(s => {
+    return list.map((s: any) => {
       const score = Math.round(
         (s.avg_grade || 70) * 0.35 +
         (s.attendance_pct || 85) * 0.2 +
@@ -207,7 +207,7 @@ export class ScholarshipService {
         fullName: s.full_name,
         admissionNumber: s.admission_number,
         class: s.class_id,
-        section: s.section,
+        section: s.section || (Array.isArray(s.sections) ? s.sections[0]?.name : s.sections?.name) || '',
         avgGrade: s.avg_grade || Math.round(Math.random() * 20 + 70),
         attendancePct: s.attendance_pct || Math.round(Math.random() * 15 + 80),
         familyIncome: s.family_income || Math.round(Math.random() * 500000 + 100000),

@@ -55,7 +55,7 @@ export const enforceTeacherAccess = () => {
     if (!req.user) { sendError(res, 'Authentication required.', 401); return; }
     const teacherId = req.params.teacher_id;
     if (!teacherId) { next(); return; }
-    const { data: teacher } = await supabase.from('teachers').select('user_id').eq('id', teacherId).single();
+    const { data: teacher } = await supabase.from('staff_records').select('user_id').eq('id', teacherId).single();
     if (!teacher || teacher.user_id !== req.user.userId) {
       sendError(res, 'Access denied: you can only access your own records.', 403);
       return;

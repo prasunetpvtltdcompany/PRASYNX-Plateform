@@ -111,27 +111,19 @@
     .workspace-rail-overlay { display: none; }
   }
 
-  .workspace-logo {
-    @apply flex items-center justify-center mb-6 flex-shrink-0;
-    width: 44px;
-    height: 44px;
-    border-radius: 14px;
-    background: linear-gradient(135deg, #7C3AED, #8B5CF6);
-    color: #FFFFFF;
-    font-weight: 900;
-    font-size: 18px;
-  }
+.workspace-logo {
+  @apply w-10 h-10 rounded-xl flex items-center justify-center text-purple-600 font-extrabold text-base flex-shrink-0 mb-4;
+  background: #FFFFFF;
+  border: 1px solid #eaebed;
+}
 
   .workspace-btn {
     @apply flex flex-col items-center justify-center gap-1 w-full py-3 transition-all cursor-pointer relative;
   }
   .workspace-btn-indicator {
     @apply absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 rounded-r-full transition-all;
-    background: #7C3AED;
+    background: #a984eb;
     opacity: 0;
-  }
-  .workspace-btn.active .workspace-btn-indicator {
-    opacity: 1;
   }
   .workspace-btn-icon {
     @apply flex items-center justify-center transition-all;
@@ -150,11 +142,11 @@
     box-shadow: 0 4px 12px rgba(124, 58, 237, 0.3);
   }
   .workspace-btn-label {
-    @apply text-[8px] font-semibold text-center leading-none;
+    @apply text-[10px] font-semibold text-center leading-none;
     color: #94A3B8;
   }
   .workspace-btn.active .workspace-btn-label {
-    color: #7C3AED;
+    color: #0c0910;
   }
 
   /* ===== PANEL 2: Dynamic Navigation Sidebar (280px) ===== */

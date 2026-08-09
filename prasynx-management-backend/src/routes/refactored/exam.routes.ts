@@ -42,6 +42,7 @@ router.post('/results/:organisation_id', asyncHandler((req, res) => examControll
 router.post('/results/bulk/:organisation_id', asyncHandler((req, res) => examController.bulkEnterMarks(req, res)));
 router.post('/results/:exam_id/publish', asyncHandler((req, res) => examController.publishResults(req, res)));
 router.post('/results/:exam_id/lock', asyncHandler((req, res) => examController.lockResults(req, res)));
+router.post('/results/:exam_id/unlock', asyncHandler((req, res) => examController.unlockResults(req, res)));
 
 router.get('/performance/:organisation_id/:student_id', asyncHandler((req, res) => examController.getStudentPerformance(req, res)));
 
