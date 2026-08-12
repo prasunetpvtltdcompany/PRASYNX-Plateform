@@ -1,0 +1,17 @@
+{
+  "name": "@prasynx/validation",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Authoritative zod schemas for PRASYNX (server validates, web reuses)",
+  "main": "src/index.ts",
+  "types": "src/index.ts",
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "typescript": "^5.6.2"
+  }
+}

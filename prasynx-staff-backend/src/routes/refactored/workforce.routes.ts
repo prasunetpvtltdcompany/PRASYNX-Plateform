@@ -281,12 +281,12 @@ router.delete('/work-assignments/:id', asyncHandler(async (req: Request, res: Re
 
 router.get('/workload-distribution/:orgId', asyncHandler(async (req: Request, res: Response) => {
   const { orgId } = req.params;
-  const { data, error } = await supabase.from('staff_assignments')
-    .select('assignment_type').eq('organisation_id', orgId);
+  const { data, error } = await supabase.from('staff_records')
+    .select('department').eq('organisation_id', orgId);
   if (error) throw new AppError(error.message, 500);
   const agg: Record<string, number> = {};
   (data || []).forEach((a: any) => {
-    const type = a.assignment_type || 'other';
+    const type = a.department || 'other';
     agg[type] = (agg[type] || 0) + 1;
   });
   res.json({ success: true, data: Object.entries(agg).map(([name, value]) => ({ name, value })) });
@@ -639,13 +639,14 @@ router.get('/analytics/:orgId', asyncHandler(async (req: Request, res: Response)
 
 router.get('/analytics/departments/:orgId', asyncHandler(async (req: Request, res: Response) => {
   const { orgId } = req.params;
-  const { data, error } = await supabase.from('staff_departments').select('*').eq('organisation_id', orgId);
+  const { data, error } = await supabase.from('staff_records').select('department').eq('organisation_id', orgId);
   if (error) throw new AppError(error.message, 500);
-  const enriched = await Promise.all((data || []).map(async (d: any) => {
-    const { count } = await supabase.from('users').select('*', { count: 'exact', head: true }).eq('department_id', d.id);
-    return { name: d.name, count: count || 0 };
-  }));
-  res.json({ success: true, data: enriched });
+  const counter: Record<string, number> = {};
+  (data || []).forEach((r: any) => {
+    const name = r.department || 'Unassigned';
+    counter[name] = (counter[name] || 0) + 1;
+  });
+  res.json({ success: true, data: Object.entries(counter).map(([name, count]) => ({ name, count })) });
 }));
 
 router.get('/analytics/roles/:orgId', asyncHandler(async (req: Request, res: Response) => {

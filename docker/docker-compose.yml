@@ -1,0 +1,35 @@
+version: "3.9"
+
+# Bring-up for staging / single-host production.
+#   * server reads env from `.env` (copy of .env.example with real values)
+#   * Redis: set REDIS_URL=redis://redis:6379 in .env when using this compose
+#   * Supabase stays fully managed - only the DB+Storage keys go here
+
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - redis-data:/data
+
+  server:
+    build:
+      context: ..
+      dockerfile: docker/server.Dockerfile
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    env_file:
+      - ../server/.env
+    depends_on:
+      - redis
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:4000/api/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+
+volumes:
+  redis-data:

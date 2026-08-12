@@ -1,0 +1,50 @@
+{
+  "name": "@prasynx/server",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PRASYNX modular monolith - single Express API for all school portals",
+  "main": "dist/server.js",
+  "scripts": {
+    "dev": "tsx watch src/server.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "tsx src/server.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@prasynx/config": "0.1.0",
+    "@prasynx/types": "0.1.0",
+    "@prasynx/validation": "0.1.0",
+    "@supabase/supabase-js": "^2.105.1",
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.7",
+    "cors": "^2.8.5",
+    "dotenv": "^16.3.1",
+    "express": "^4.18.4",
+    "express-rate-limit": "^8.0.0",
+    "helmet": "^8.0.0",
+    "ioredis": "^5.0.0",
+    "jsonwebtoken": "^9.0.3",
+    "nodemailer": "^9.0.0",
+    "pino": "^9.10.0",
+    "tsx": "^4.20.0",
+    "zod": "^4.4.3"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/bcryptjs": "^2.4.6",
+    "@types/cookie-parser": "^1.4.7",
+    "@types/cors": "^2.8.17",
+    "@types/express": "^4.17.17",
+    "@types/jsonwebtoken": "^9.0.6",
+    "@types/node": "^20.14.2",
+    "@types/nodemailer": "^8.0.1",
+    "eslint": "^9.0.0",
+    "pino-pretty": "^13.0.0",
+    "typescript": "^5.6.2",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^3.1.0"
+  }
+}

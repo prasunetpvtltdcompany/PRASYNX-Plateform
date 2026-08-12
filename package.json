@@ -1,8 +1,28 @@
 {
-  "dependencies": {
-    "@supabase/supabase-js": "^2.108.1",
-    "@types/nodemailer": "^8.0.1",
-    "nodemailer": "^9.0.0",
-    "pg": "^8.21.0"
+  "name": "prasynx-platform",
+  "version": "0.1.0",
+  "private": true,
+  "description": "PRASYNX Platform - modular monolith monorepo (school domain)",
+  "workspaces": [
+    "apps/*",
+    "server",
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "npm run dev --workspace=@prasynx/server",
+    "dev:web": "npm run dev --workspace=@prasynx/web",
+    "dev:platform": "npm run dev --workspace=@prasynx/platform",
+    "build": "npm run build --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present"
+  },
+  "packageManager": "npm@12.0.2",
+  "allowScripts": {
+    "esbuild@0.28.2": true,
+    "unrs-resolver@1.12.2": true
   }
 }
