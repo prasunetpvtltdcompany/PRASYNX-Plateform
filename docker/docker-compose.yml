@@ -1,7 +1,7 @@
 version: "3.9"
 
 # Bring-up for staging / single-host production.
-#   * server reads env from `.env` (copy of .env.example with real values)
+#   * server reads env from `../server/.env` (copy of server/.env.example with real values)
 #   * Redis: set REDIS_URL=redis://redis:6379 in .env when using this compose
 #   * Supabase stays fully managed - only the DB+Storage keys go here
 

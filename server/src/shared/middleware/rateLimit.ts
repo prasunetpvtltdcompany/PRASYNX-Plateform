@@ -1,5 +1,5 @@
 import rateLimit, { ipKeyGenerator, type Options } from 'express-rate-limit';
-import type { Request } from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import { cache } from '../../infrastructure/cache/cache';
 import { TooManyRequestsError } from '../errors/errors';
 
@@ -32,23 +32,15 @@ export const getUserKey = (req: Request) => {
   return uid ? `u:${uid}` : ipKeyGenerator(req.ip ?? req.socket.remoteAddress ?? 'unknown');
 };
 
-export function makeRateLimiter(options: {
+export function makeRateLimiter(_options: {
   windowMs: number;
   max: number;
   keyGenerator?: (req: Request) => string;
   message?: string;
   skipSuccessfulRequests?: boolean;
 }) {
-  return rateLimit({
-    windowMs: options.windowMs,
-    limit: options.max,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    keyGenerator: options.keyGenerator ?? getIp,
-    store: fixedWindowStore(options.windowMs),
-    handler: (_req, _res, next) => next(new TooManyRequestsError(options.message)),
-    ...(options.skipSuccessfulRequests ? { skipSuccessfulRequests: true } : {}),
-  });
+  /* Rate limiting is intentionally disabled. */
+  return (_req: Request, _res: Response, next: NextFunction) => next();
 }
 
 /** Global per-IP limiter on the whole /api surface. */

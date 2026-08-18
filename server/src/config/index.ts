@@ -21,6 +21,9 @@ export const config = {
     refreshTtl: env.JWT_REFRESH_TTL,
     bcryptRounds: env.BCRYPT_ROUNDS,
   },
+  // Backwards-compatible top-level JWT fields used by older modules
+  jwtSecret: env.JWT_SECRET,
+  jwtExpiresIn: env.JWT_ACCESS_TTL,
 
   redisUrl: env.REDIS_URL,
   allowedOrigins: env.ALLOWED_ORIGINS,

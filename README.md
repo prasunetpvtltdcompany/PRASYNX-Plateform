@@ -1,12 +1,13 @@
 # PRASYNX Platform
 
-Enterprise-grade modular monolith for school management (Admin/Teacher/Student/Parent portals). This workspace replaces the legacy role-siloed repo (`prasynx-admin-*`, `prasynx-staff-*`, ...) — those apps stay on disk but are being decommissioned module-by-module. The job-provider section was intentionally dropped.
+Enterprise-grade modular monolith for school management (Admin/Teacher/Student/Parent portals). This workspace replaces the legacy role-siloed apps (`prasynx-admin-*`, `prasynx-staff-*`, ...) — they have been fully migrated into the monolith and removed.
 
 ## Repository layout
 
 ```
-server/                  Express modular monolith (the API)  - active work
-apps/web/                single Next.js frontend (per-role route groups) - active work
+server/                  Express modular monolith (the API)
+apps/web/                single Next.js frontend (per-role route groups)
+apps/mobile/             Expo app (not part of the npm workspaces)
 packages/
   types/       @prasynx/types        shared DTOs
   config/      @prasynx/config       env validation + RBAC matrix
@@ -14,8 +15,7 @@ packages/
 docker/        server image + docker-compose
 .github/workflows/  CI + CD (staging/prod)
 docs/          ARCHITECTURE.md, API.md
-supabase/      schema migrations (unchanged - not redesigned)
-prasynx-*/     legacy role apps (to be migrated & removed)
+supabase/      schema migrations
 ```
 
 ## Quickstart
@@ -24,7 +24,7 @@ Requirements: Node >= 22, npm.
 
 ```bash
 npm install
-cp .env.example server/.env   # fill in real Supabase keys
+cp server/.env.example server/.env   # fill in real Supabase keys
 npm run dev                   # boots the API on :4000
 npm run dev:web               # boots the single frontend on :3000 (needs the API)
 ```
@@ -42,7 +42,7 @@ npm run build       tsc build for the server
 
 ## Environment
 
-See `.env.example` for the full contract (server validates it at boot and refuses
+See `server/.env.example` for the full contract (server validates it at boot and refuses
 to start half-configured). Key vars:
 
 | Var | Purpose |
@@ -60,6 +60,6 @@ to start half-configured). Key vars:
 
 ## Migration status
 
-Done: auth (+ refresh rotation/revocation), users, organisations (register-school), classes, attendance, exams, timetable, assignments, finance, RBAC, rate limiting, brute-force lockout, cache abstraction, queue, CI/CD, Docker, single `apps/web` frontend with per-role route groups + edge role gate (`proxy.ts`).
+Done: auth (+ refresh rotation/revocation), users, organisations (register-school), classes, attendance, exams, timetable, assignments, finance, RBAC, rate limiting, brute-force lockout, cache abstraction, queue, CI/CD, Docker, single `apps/web` frontend with per-role route groups + edge role gate (`proxy.ts`), all portals migrated (admin, management, job provider, voiceai, parent, staff, student).
 
-Next: DB-level `audit_logs` wiring → decommission legacy backends → harden web auth (same-site cookies / CSRF) → CD for the web app.
+Next: DB-level `audit_logs` wiring → harden web auth (same-site cookies / CSRF) → CD for the web app.

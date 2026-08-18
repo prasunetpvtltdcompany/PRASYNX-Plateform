@@ -142,7 +142,7 @@ export default function StaffDetailPage() {
           <h2 className="text-lg font-bold">Staff Member Not Found</h2>
           <p className="text-xs text-gray-500">We could not find a staff record matching ID: {staffId}.</p>
           {errMsg && <p className="text-[10px] text-red-400 font-mono">{errMsg}</p>}
-          <button onClick={() => router.push('/?tab=staff')} className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-xs font-semibold hover:bg-[#1D4ED8]">
+          <button onClick={() => router.push('/management?tab=staff')} className="px-4 py-2 bg-[#2563EB] text-white rounded-lg text-xs font-semibold hover:bg-[#1D4ED8]">
             Back to Staff Management
           </button>
         </Card>
@@ -190,7 +190,7 @@ export default function StaffDetailPage() {
       <main className="main-content" style={{ marginLeft: 0 }}>
         <header className="header">
           <div className="header-left flex items-center gap-2 w-full max-w-md">
-            <button onClick={() => router.push('/?tab=staff')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-150 text-xs text-gray-500 font-semibold transition-colors flex-shrink-0">
+            <button onClick={() => router.push('/management?tab=staff')} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg hover:bg-gray-150 text-xs text-gray-500 font-semibold transition-colors flex-shrink-0">
               <ArrowLeft size={14} /> Back to List
             </button>
             <div className="hidden lg:flex search-bar cursor-pointer ml-4 w-full" onClick={() => setCmdPaletteOpen(true)}>
@@ -248,7 +248,7 @@ export default function StaffDetailPage() {
 
               {/* Quick Actions Header Area */}
               <div className="flex flex-wrap items-center gap-2.5">
-                <button onClick={() => router.push('/?tab=staff')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-800 border border-white/60 hover:bg-slate-50 text-xs font-bold shadow-sm transition-colors">
+                <button onClick={() => router.push('/management?tab=staff')} className="inline-flex items-center gap-1 px-3 py-1.5 rounded-lg bg-white text-slate-800 border border-white/60 hover:bg-slate-50 text-xs font-bold shadow-sm transition-colors">
                   <ArrowLeft size={13} className="text-slate-600" /> Back to List
                 </button>
               </div>

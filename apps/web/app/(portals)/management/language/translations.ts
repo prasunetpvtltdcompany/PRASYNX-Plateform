@@ -520,6 +520,7 @@ const en: Record<string, string | NestedTranslation> = {
     complaints: 'Complaints',
     requests: 'Requests',
     notifications: 'Notifications',
+    classes: 'Class & Section',
   },
   ui: {
     add: 'Add', create: 'Create', save: 'Save', update: 'Update', edit: 'Edit',

@@ -87,7 +87,9 @@ export default function PromotionTab() {
   const classStudents = useApi(() => fromClass ? classApiV2.getStudents(fromClass) : Promise.resolve({ success: true, data: [] }), [fromClass]);
   const allStudents = useApi(() => studentApi.getAll(), []);
 
-  const classList = Array.isArray(classes.data) ? classes.data : [];
+  const classList = Array.isArray(classes.data)
+    ? classes.data.map((c: any) => ({ ...c, name: c.class_name ?? c.name }))
+    : [];
   const yearList = Array.isArray(years.data) ? years.data : [];
   // Fallback year labels ("2026-27" style) so the academic year is always visible
   // even when no academic_years rows exist in the database yet. Fallback ids are

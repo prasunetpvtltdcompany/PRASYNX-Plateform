@@ -727,7 +727,7 @@ export default function Home() {
                       </div>
 
                       {/* CTA */}
-                      <a href={['http://localhost:3002', 'http://localhost:3004', 'http://localhost:3003', 'http://localhost:3006', 'http://localhost:3001', 'http://localhost:3001'][i]}
+                      <a href={['http://localhost:3002', 'http://localhost:3004', 'http://localhost:3003', 'http://localhost:3006', 'http://localhost:3000/management/login'][i]}
                         className="group inline-flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-bold text-white shadow-lg transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl"
                         style={{ background: `linear-gradient(135deg, ${p.color}, ${p.color}cc)` }}>
                         Explore {p.name}
@@ -1197,9 +1197,6 @@ export default function Home() {
                 <a href="/book-demo" className="inline-flex items-center gap-2 rounded-xl bg-white px-8 py-3.5 text-base font-bold shadow-lg transition-all hover:-translate-y-1 hover:shadow-xl"
                   style={{ color: '#6C4CF1' }}>
                   Start Free Trial <ArrowRight className="h-5 w-5" />
-                </a>
-                <a href="/book-demo" className="inline-flex items-center gap-2 rounded-xl border-2 border-white/30 px-8 py-3.5 text-base font-bold text-white transition-all hover:-translate-y-0.5 hover:bg-white/10 hover:shadow-lg">
-                  Book Demo
                 </a>
                 <a href="#platform" className="inline-flex items-center gap-2 rounded-xl border-2 border-white/20 px-8 py-3.5 text-base font-bold text-white/80 transition-all hover:-translate-y-0.5 hover:bg-white/5 hover:text-white hover:shadow-lg">
                   <Play className="h-5 w-5" /> Watch Platform Tour

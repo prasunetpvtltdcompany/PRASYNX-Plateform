@@ -49,4 +49,8 @@ export interface AuthenticatedUser {
   role: Role;
   tenantId: string | null;
   sessionId: string;
+  /** Backwards-compatible alias for tenantId used in older server code */
+  organisationId?: string | null;
+  /** Optional alias for userId used by some server modules */
+  id?: string;
 }

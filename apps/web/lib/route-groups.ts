@@ -7,7 +7,7 @@ import { ROLES } from "@prasynx/types";
  * Product (CUIMS-style): one main site + one portal per audience, each with its
  * own login and its own subdomain in production:
  *   www.* - public showcase site lives in apps/platform (marketing app)
- *   /admin/*           - admin.prasynx.in  - PRASYNX company: register schools + grant portal access
+ *   /admin-panel/*   - admin.prasynx.in  - PRASYNX company: register schools + grant portal access
  *   /management/*      - management.prasynx.in - school management
  *   /staff/*           - staff.prasynx.in  - teachers and non-teaching staff
  *   /student/*         - student.prasynx.in - students
@@ -99,7 +99,7 @@ export function homeForRole(role: Role): string {
     case ROLES.PLATFORM_ADMIN:
     case ROLES.PLATFORM_SUPERVISOR:
     case ROLES.PLATFORM_OWNER:
-      return "/admin";
+      return "/admin-panel";
     case ROLES.SCHOOL_MANAGEMENT:
       return "/management";
     case ROLES.TEACHER:

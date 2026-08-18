@@ -1418,7 +1418,7 @@ export default function StaffWorkspace({ staffList, initialTab, onTabChange }: {
                     className="border-b border-gray-50 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors">
                     <td className="py-3 text-xs font-mono text-gray-500">{staffIdOf(member) || '—'}</td>
                     <td className="py-3">
-                      <button onClick={() => router.push(`/staff/${member.id}`)} className="text-xs font-semibold text-gray-900 dark:text-white hover:text-[#6D4CFF] transition-colors">{member.full_name || member.name || '—'}</button>
+                      <button onClick={() => router.push(`/management/staff/${member.id}`)} className="text-xs font-semibold text-gray-900 dark:text-white hover:text-[#6D4CFF] transition-colors">{member.full_name || member.name || '—'}</button>
                     </td>
                     <td className="py-3 text-xs text-gray-600 dark:text-gray-400 capitalize">{member.role || '—'}</td>
                     <td className="py-3 text-xs text-gray-600 dark:text-gray-400">{member.department || member.department_name || '—'}</td>
@@ -1428,7 +1428,7 @@ export default function StaffWorkspace({ staffList, initialTab, onTabChange }: {
                     <td className="py-3"><StatusBadge status={member.status} /></td>
                     <td className="py-3 text-right">
                       <div className="flex items-center justify-end gap-1">
-                        <button onClick={() => router.push(`/staff/${member.id}`)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition-colors" title="View Profile"><Eye size={14} /></button>
+                        <button onClick={() => router.push(`/management/staff/${member.id}`)} className="p-1.5 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-400 hover:text-gray-600 transition-colors" title="View Profile"><Eye size={14} /></button>
                         <button onClick={() => handleDeleteStaff(member)} disabled={deletingStaff === (member.id || member.staff_id)}
                           className="p-1.5 rounded-lg hover:bg-red-50 text-gray-400 hover:text-red-600 transition-colors disabled:opacity-50" title="Delete Staff">
                           {deletingStaff === (member.id || member.staff_id) ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}

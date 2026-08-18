@@ -31,4 +31,4 @@ COPY --from=build /workspace/tsconfig.base.json ./
 # Dist is validated by `build`; runtime uses the same tsx path as dev.
 EXPOSE 4000
 USER node
-CMD ["node", "--import", "tsx", "server/src/server.ts"]
+CMD ["node", "--import", "tsx", "server/src/index.ts"]

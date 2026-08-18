@@ -84,7 +84,8 @@ export const moduleConfigApi = {
     apiClient.put<any>(`/management/module-config/${orgId()}/${moduleKey}`, { enabled }).then(handleResponse),
 };
 
-const handleResponse = <T>(res: { success: boolean; data?: T; error?: string }) => res as { success: boolean; data?: T; error?: string };
+const handleResponse = <T>(res: { success: boolean; data?: T; error?: string; code?: string; details?: any }) =>
+  res as { success: boolean; data?: T; error?: string; code?: string; details?: any };
 
 const unwrapData = <T>(res: { success: boolean; data?: T; error?: string }): T => {
   if (!res.success) throw new Error(res.error || 'Request failed');
@@ -234,10 +235,10 @@ export const classApiV2 = {
     apiClient.post<any>(`/v2/classes/classes/${id}/archive`).then(handleResponse),
   getStudents: (classId: string) =>
     apiClient.get<any[]>(`/v2/classes/classes/${classId}/students`).then(handleResponse),
-  assignStudent: (classId: string, studentId: string) =>
-    apiClient.post<any>(`/v2/classes/classes/${classId}/students`, { student_id: studentId }).then(handleResponse),
-  assignStudentsBulk: (classId: string, studentIds: string[]) =>
-    apiClient.post<any>(`/v2/classes/classes/${classId}/students/bulk`, { student_ids: studentIds }).then(handleResponse),
+  assignStudent: (classId: string, studentId: string, confirm = false) =>
+    apiClient.post<any>(`/v2/classes/classes/${classId}/students`, { student_id: studentId, confirm }).then(handleResponse),
+  assignStudentsBulk: (classId: string, studentIds: string[], confirm = false) =>
+    apiClient.post<any>(`/v2/classes/classes/${classId}/students/bulk`, { student_ids: studentIds, confirm }).then(handleResponse),
   removeStudent: (classId: string, studentId: string) =>
     apiClient.delete<any>(`/v2/classes/classes/${classId}/students/${studentId}`).then(handleResponse),
   transferStudent: (studentId: string, fromClassId: string, toClassId: string) =>
@@ -266,8 +267,20 @@ export const classApiV2 = {
     apiClient.get<any>(`/v2/classes/classes/${classId}/ai-insights`).then(handleResponse),
   getUnassignedStudents: () =>
     apiClient.get<any[]>(`/v2/classes/unassigned-students/${orgId()}`).then(handleResponse),
+  getAllAssignedStudents: () =>
+    apiClient.get<any[]>(`/v2/classes/assigned-students/${orgId()}`).then(handleResponse),
   getAvailableTeachers: () =>
     apiClient.get<any[]>(`/v2/classes/available-teachers/${orgId()}`).then(handleResponse),
+  getSections: (classId: string) =>
+    apiClient.get<any[]>(`/v2/classes/classes/${classId}/sections`).then(handleResponse),
+  createSection: (classId: string, data: any) =>
+    apiClient.post<any>(`/v2/classes/classes/${classId}/sections`, data).then(handleResponse),
+  updateSection: (sectionId: string, data: any) =>
+    apiClient.put<any>(`/v2/classes/sections/${sectionId}`, data).then(handleResponse),
+  deleteSection: (sectionId: string) =>
+    apiClient.delete<any>(`/v2/classes/sections/${sectionId}`).then(handleResponse),
+  getClassStudentsWithName: (classId: string) =>
+    apiClient.get<any>(`/v2/classes/classes/${classId}/students`).then(handleResponse),
 };
 
 // ==================== SUBJECTS ====================

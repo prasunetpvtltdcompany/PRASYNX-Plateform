@@ -2206,7 +2206,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                     </td>
                     {/* Role Badge */}
                     <td className="px-4 py-3 whitespace-nowrap w-[120px] min-w-[120px] max-w-[120px]">
-                      <Link href={`/staff/${row.id}/dashboard`}>
+                      <Link href={`/management/staff/${row.id}`}>
                         <Badge className={`text-[10px] font-semibold capitalize cursor-pointer hover:opacity-85 transition-opacity ${getRoleBadgeStyle(row.designation || row.role)}`}>
                           {row.designation || row.role || 'staff'}
                         </Badge>
@@ -2265,49 +2265,49 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                             <div className="fixed inset-0 z-30" onClick={() => setActionMenuOpenId(null)} />
                             <div className="absolute right-4 mt-2 w-48 bg-white border border-gray-150 rounded-xl shadow-xl z-40 py-1 text-left animate-fadeIn">
                               <Link
-                                href={`/staff/${row.id}/dashboard`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <LayoutDashboard size={12} className="text-gray-400" /> View Dashboard
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/overview`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <User size={12} className="text-gray-400" /> View Profile
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/assignments`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <Layers size={12} className="text-gray-400" /> Assignments
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/permissions`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <Shield size={12} className="text-gray-400" /> Permissions
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/performance`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <TrendingUp size={12} className="text-gray-400" /> Performance
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/attendance`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
                                 <Calendar size={12} className="text-gray-400" /> Attendance
                               </Link>
                               <Link
-                                href={`/staff/${row.id}/documents`}
+                                href={`/management/staff/${row.id}`}
                                 className="w-full px-3 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs transition-colors"
                                 onClick={() => setActionMenuOpenId(null)}
                               >
@@ -2341,7 +2341,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                       <h4 className="font-bold text-sm text-gray-900">{row.full_name}</h4>
                       <p className="text-[10px] text-gray-400">Employee ID: {row.staff_unique_id || row.staff_unique_id || '—'}</p>
                     </div>
-                    <Link href={`/staff/${row.id}/dashboard`}>
+                    <Link href={`/management/staff/${row.id}`}>
                       <Badge className={`text-[9px] capitalize cursor-pointer hover:opacity-85 transition-opacity ${getRoleBadgeStyle(row.designation || row.role)}`}>
                         {row.designation || row.role || 'staff'}
                       </Badge>
@@ -2370,7 +2370,7 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                     
                     <div className="flex items-center gap-1">
                       <Link
-                        href={`/staff/${row.id}/overview`}
+                        href={`/management/staff/${row.id}`}
                         className="px-3 py-1.5 rounded-lg bg-gray-50 border border-gray-200 text-gray-600 text-xs font-semibold hover:bg-gray-100 min-h-[44px] flex items-center justify-center"
                       >
                         Profile
@@ -2388,49 +2388,49 @@ export default function StaffTab({ staffList: propStaffList }: { staffList: any 
                         <div className="fixed inset-0 z-30" onClick={() => setActionMenuOpenId(null)} />
                         <div className="absolute right-0 bottom-12 w-48 bg-white border border-gray-150 rounded-xl shadow-xl z-40 py-1 text-left animate-fadeIn">
                           <Link
-                            href={`/staff/${row.id}/dashboard`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <LayoutDashboard size={12} className="text-gray-400" /> View Dashboard
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/overview`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <User size={12} className="text-gray-400" /> View Profile
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/assignments`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <Layers size={12} className="text-gray-450" /> Assignments
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/permissions`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <Shield size={12} className="text-gray-450" /> Permissions
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/performance`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <TrendingUp size={12} className="text-gray-450" /> Performance
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/attendance`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >
                             <Calendar size={12} className="text-gray-450" /> Attendance
                           </Link>
                           <Link
-                            href={`/staff/${row.id}/documents`}
+                            href={`/management/staff/${row.id}`}
                             className="w-full px-4 py-2 hover:bg-purple-50 text-gray-750 hover:text-purple-700 flex items-center gap-2 font-semibold text-xs"
                             onClick={() => setActionMenuOpenId(null)}
                           >

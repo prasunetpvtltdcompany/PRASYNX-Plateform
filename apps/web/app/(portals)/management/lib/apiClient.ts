@@ -7,6 +7,8 @@ interface ApiResponse<T = any> {
   data?: T;
   error?: string;
   message?: string;
+  code?: string;
+  details?: any;
 }
 
 class ApiClient {
@@ -37,7 +39,10 @@ class ApiClient {
     try {
       const res = await fetch(`${this.baseUrl}${endpoint}`, {
         ...options,
-        headers
+        headers,
+        // Ensure cookies are sent/received in cross-origin dev setups
+        // so the browser can accept the `Set-Cookie` header from the API.
+        credentials: (options as RequestInit).credentials ?? 'include'
       });
 
       const data = await res.json();
@@ -45,7 +50,9 @@ class ApiClient {
       if (!res.ok) {
         return {
           success: false,
-          error: data.error || data.message || `Request failed with status ${res.status}`
+          error: data.error || data.message || `Request failed with status ${res.status}`,
+          code: data.code,
+          details: data.details,
         };
       }
 
@@ -105,7 +112,7 @@ class ApiClient {
       refreshToken: string;
       expiresIn: number;
       user: any;
-    }>('/v1/auth/login', { email, password });
+    }>('/v2/auth/login', { email, password });
 
     if (!res.success || !res.data) {
       return { success: false, error: res.error || 'Login failed' };

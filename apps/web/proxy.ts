@@ -35,7 +35,14 @@ export function proxy(request: NextRequest) {
   // The management portal was replaced by the legacy prasynx-management-frontend
   // page, which manages its own session (localStorage `managementSession`) and
   // renders its own sign-in screen inside /management. Skip the edge role gate.
-  if (group === "management") return NextResponse.next();
+  // Same for the admin panel: it authenticates via Supabase (storage session +
+  // httpOnly `token` cookie) and self-gates on loading/session in page.tsx.
+  // Same for the parent portal: legacy prasynx-parents-frontend port keeps its
+  // own session (localStorage `parentSession`) and an inline sign-in screen.
+  // Same for the staff and student portals: legacy prasynx-staff/student-frontend
+  // ports keep their own sessions (localStorage `staffSession`/`studentSession`)
+  // with inline sign-in screens.
+  if (group === "admin-panel" || group === "management" || group === "parent" || group === "staff" || group === "student") return NextResponse.next();
 
   // A portal's own login page (/<portal>/login) is always public.
   if (pathname === loginPathForGroup(group)) return NextResponse.next();

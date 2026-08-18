@@ -7,6 +7,7 @@ import {
   School,
   GraduationCap,
   HeartHandshake,
+  Briefcase,
   Sparkles,
   ShieldCheck,
   Lock,
@@ -77,6 +78,18 @@ const PORTALS: PortalEntry[] = [
     soft: "bg-violet-50",
     text: "text-violet-600",
     ring: "hover:border-violet-300",
+  },
+  {
+    key: "jobprovider",
+    label: "Job Provider Login",
+    desc: "Hiring portal - post jobs and manage candidates.",
+    features: ["Post Jobs", "Applications & Hiring", "Reports & Analytics"],
+    icon: Briefcase,
+    from: "from-amber-500",
+    to: "to-orange-600",
+    soft: "bg-amber-50",
+    text: "text-amber-600",
+    ring: "hover:border-amber-300",
   },
 ];
 
